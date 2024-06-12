@@ -21,11 +21,9 @@ private:
 
     bool enableMobilization_ = false;
 
-    bool enableThermField_ = false;
     bool enableThermTorque_ = false;
     bool enableThermForce_ = false;
-    int seed_ = 0;
-    
+    double seed_ = 0;
 
     bool enableCoatingPot_ = false;
 
@@ -84,7 +82,6 @@ private:
     double el_ = 0;
 
     double facEwald_ = 0;
-    double velMmConst_ = 0;
     double anisConst_ = 0;
     double sterRepFac_ = 0;
     double gamma_ = 0;
@@ -112,10 +109,9 @@ public:
 
     bool getEnableMobilization() const;
 
-    bool getEnableThermField() const;
     bool getEnableThermTorque() const;
     bool getEnableThermForce() const;
-    int getSeed() const;
+    double getSeed() const;
 
     bool getEnableCoatingPot() const;
 
@@ -174,7 +170,6 @@ public:
     double getEl() const;
 
     double getFacEwald() const;
-    double getVelMmConst() const;
     double getAnisConst() const;
     double getSterRepFac() const;
     double getGamma() const;

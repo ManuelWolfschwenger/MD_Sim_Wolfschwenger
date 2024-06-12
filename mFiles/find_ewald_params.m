@@ -2,10 +2,10 @@ clc
 clear all
 
 mu0 = 4*pi*10^(-7);
-rMag = 5e-9;
+rMag = 8e-9;
 Ms = 4.5e5;
-N = 500;
-volFrac = 0.005;
+N = 1000;
+volFrac = 0.001;
 
 volMag = 4/3*pi*rMag^3;
 magMom = volMag*Ms;

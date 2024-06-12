@@ -32,6 +32,13 @@ typedef struct
 	ArrayXd 		velEaConst2;
 	ArrayXXd        magMomVec;
 	ArrayXXd        magMomSum;
+	ArrayXd 		tau0;
+	ArrayXd 		psi;
+	ArrayXd         sinPsi;
+	ArrayXd         cosPsi;
+	ArrayXd         sinPsi2;
+	ArrayXd         dPotEn;
+	ArrayXd         ddPotEn;
 } PartProps_S;
 
 // particle rotational coordinates structure
@@ -39,6 +46,12 @@ typedef struct
 {
 	ArrayXXd 		posMm;
 	ArrayXXd 		posEa;
+	ArrayXXd        vecNormal;
+	ArrayXXd        mProj;
+	ArrayXXd        Bvec;
+	ArrayXd         psiIs;
+	ArrayXd         phiIs;
+	ArrayXi         state;
 } CoordsRot_S;
 
 // particale translational coordinates structure
@@ -50,7 +63,6 @@ typedef struct
 
 typedef struct
 {
-	ArrayXXd 		knMm;
 	ArrayXXd 		knEa;
 } RkCoeff_S;
 
@@ -130,7 +142,8 @@ typedef struct
 typedef struct
 {
 	vector<double> t;                       // time vector
-	vector<double> mz;                      // magnetization vector
+	vector<double> mz; 
+	vector<double> nz;                      // magnetization vector
 	vector<double> MSDx, MSDy, MSDz;        // mean square displacement for einstein, diffusion coefficient
 	vector<double> PxyVec, PxzVec, PyzVec;  // vectors for einstein viscosity
 	Array<double, Dynamic, 3> posRef, truePos, velRef;   // reference positions, velocities and true positions
@@ -150,7 +163,6 @@ typedef struct
 	ArrayXXd 		extFluxDens;	
 	ArrayXXd 		demagFluxDens;	
 	ArrayXXd 		thermTorque;	 
-	ArrayXXd 		thermField;		
 	ArrayXXd 		thermForce;		
 	ArrayXXd 		intForce;		
 	IntLists_S      intLists;

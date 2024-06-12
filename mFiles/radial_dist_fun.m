@@ -18,8 +18,8 @@ steps = length(coords)/numbPart; %steps stored from c++
 % properties of histogram
 bins = 500;
 rangeRdf = 8*rMag(1);
-tMin = 2000;%2000;
-tMax = 3000;%3000;
+tMin = 500;
+tMax = 1000;
 
 cols = tMax - tMin + 1;
 binWidth = rangeRdf/bins;

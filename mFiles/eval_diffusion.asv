@@ -4,9 +4,9 @@ clear all
 restoredefaultpath
 addpath('H:\PhD\simulation_model\MC_interact\src\build','-end');
 
-MSDx = importdata('MSDx.txt');
-MSDy = importdata('MSDy.txt');
-MSDz = importdata('MSDz.txt');
+MSDnx = importdata('MSDx.txt');
+MSDny = importdata('MSDy.txt');
+MSDnz = importdata('MSDz.txt');
 velAcfx = importdata('velAcfx.txt');
 velAcfy = importdata('velAcfy.txt');
 velAcfz = importdata('velAcfz.txt');
@@ -31,27 +31,24 @@ Dnonint = kB*T/(6*pi*mu*rh);
 %% diffusion coefficient with Einstein relation
 timeOri = 10;
 
-cutIdx = floor(length(MSDx)/timeOri)*timeOri;
-MSDx = MSDx(1:cutIdx);
-MSDy = MSDy(1:cutIdx);
-MSDz = MSDz(1:cutIdx);
+cutIdx = m
+MSDx = MSDx(
 
-L = floor(length(MSDx)/timeOri);
 MSDnx = zeros(L,1);
 MSDny = zeros(L,1);
 MSDnz = zeros(L,1);
 
-for i = 0:timeOri-1
-    MSDnx = MSDnx + (MSDx(i*L + 1 : (i+1)*L) - MSDx(i*L + 1));
-    MSDny = MSDny + (MSDy(i*L + 1 : (i+1)*L) - MSDy(i*L + 1));
-    MSDnz = MSDnz + (MSDz(i*L + 1 : (i+1)*L) - MSDz(i*L + 1));
+for i = 1:timeOri
+    MSDnx = MSDnx + Pxy((i-1)*L + 1:i*L);
+    MSDny = MSDny + cumtrapz(tVisEin,Pxz((i-1)*L + 1:i*L)).^2;
+    MSDnz = MSDnz + cumtrapz(tVisEin,Pyz((i-1)*L + 1:i*L)).^2;
 end
 
 MSDnx = MSDnx/timeOri;
 MSDny = MSDny/timeOri;
 MSDnz = MSDnz/timeOri;
 
-time = ((0:L-1)*deltaT)';
+time = ((0:length(MSDnx)-1)*deltaT)';
 
 %relate t to brown relaxation
 time = time/tauB;

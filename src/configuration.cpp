@@ -16,10 +16,9 @@ Configuration::Configuration() : reader("../configuration.ini") {
 
 		enableMobilization_ = reader.GetBoolean("mobilization", "ENABLE_MOBILIZATION", false);
 
-		enableThermField_ = reader.GetBoolean("thermal_fluctuations", "ENABLE_THERM_FIELD", false);
 		enableThermTorque_ = reader.GetBoolean("thermal_fluctuations", "ENABLE_THERM_TORQUE", false);
 		enableThermForce_ = reader.GetBoolean("thermal_fluctuations", "ENABLE_THERM_FORCE", false);
-		seed_ = reader.GetInteger("thermal_fluctuations", "seed", -1);
+		seed_ = reader.GetReal("thermal_fluctuations", "seed", -1);
 
 		enableCoatingPot_ = reader.GetBoolean("interactions", "ENABLE_COATING_POT", false);
 
@@ -38,7 +37,7 @@ Configuration::Configuration() : reader("../configuration.ini") {
 		volFrac_ = reader.GetReal("assemble_properties", "volFrac", -1);
 
 		densSurfMol_ = reader.GetReal("steric_repulsion", "densSurfMol", -1);
-		effLenSurfMol_ = 0.2 * rMagMean_;
+		effLenSurfMol_ = reader.GetReal("steric_repulsion", "effLenSurfMol", -1);
 
 		hamaker_ = reader.GetReal("vdw_attraction", "hamaker", -1);
 
@@ -77,7 +76,6 @@ Configuration::Configuration() : reader("../configuration.ini") {
 
 		numbPart_ = npDim_ * npDim_ * npDim_;
 		facEwald_ = reader.GetReal("faster_calculation", "facEwald", -1);
-		velMmConst_ = gyroMr_ / (1.0 + pow(magDamp_, 2.0));
 		anisConst_ = 2.0 * anisEn_ / satMag_;
 		sterRepFac_ = 4 * kB_ * temp_ * my_pi_ * densSurfMol_ / (2 * effLenSurfMol_);
 		gamma_ = tanh(z_valency_ * el_ * gamma_0_ / (4 * kB_ * temp_));
@@ -119,20 +117,16 @@ bool Configuration::getEnableMobilization() const {
 	return enableMobilization_;
 }
 
-bool Configuration::getEnableThermField() const {
-	return enableThermField_;
-}
-
 bool Configuration::getEnableThermTorque() const {
 	return enableThermTorque_;
 }
 
-int Configuration::getSeed() const {
-	return seed_;
-}
-
 bool Configuration::getEnableThermForce() const {
 	return enableThermForce_;
+}
+
+double Configuration::getSeed() const {
+	return seed_;
 }
 
 bool Configuration::getEnableCoatingPot() const {
@@ -337,10 +331,6 @@ double Configuration::getFacEwald() const {
 	return facEwald_;
 }
 
-double Configuration::getVelMmConst() const {
-	return velMmConst_;
-}
-
 double Configuration::getAnisConst() const {
 	return anisConst_;
 }
@@ -383,7 +373,6 @@ double Configuration::getTEnd() const {
 std::string Configuration::toString() const {
 	std::stringstream ss;
 	ss << "numbPart_: " << numbPart_ << std::endl;
-	ss << "seed_: " << seed_ << std::endl;
 	ss << "npDim_: " << npDim_ << std::endl;
 	ss << "magDamp_: " << magDamp_ << std::endl;
 	ss << "temp_: " << temp_ << std::endl;
@@ -423,7 +412,6 @@ std::string Configuration::toString() const {
 	ss << "epsilon_0_: " << epsilon_0_ << std::endl;
 	ss << "el_: " << el_ << std::endl;
 	ss << "facEwald_: " << facEwald_ << std::endl;
-	ss << "velMmConst_: " << velMmConst_ << std::endl;
 	ss << "anisConst_: " << anisConst_ << std::endl;
 	ss << "sterRepFac_: " << sterRepFac_ << std::endl;
 	ss << "gamma_: " << gamma_ << std::endl;

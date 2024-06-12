@@ -286,10 +286,10 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 	pParams->nCutLR = paramArr(minIdx, 3);
 
 	cout << "\n" << endl;
-	cout << std::setprecision(10);
-	cout << "        rc        time        alpha          kc" << endl;
-	cout << paramArr << endl;
-	cout << "\n" << endl;
+	cout << std::setprecision(5);
+	//cout << "        rc        time        alpha          kc" << endl;
+	//cout << paramArr << endl;
+	//cout << "\n" << endl;
 	cout << "the optimal paramters for the  ewald-summation are: rc = L*" << paramArr(minIdx, 0) << " alpha*L = " << pParams->alpha * pParams->lBox << " kc = " << pParams->nCutLR << endl;
 
 	pParams->nCutLR = floor(paramArr(minIdx, 3) + 0.5); // round up kc for grid vector

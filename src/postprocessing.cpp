@@ -264,9 +264,9 @@ void ExportDiffVis(OutputVar_S* pOutputVar, double tInt, int steps) //cut off ze
 	}
 
 	// GK diffusion
-	pOutputVar->velAcfx /= (pOutputVar->j + 1);
-	pOutputVar->velAcfy /= (pOutputVar->j + 1);
-	pOutputVar->velAcfz /= (pOutputVar->j + 1);
+	pOutputVar->velAcfx /= (pOutputVar->j);
+	pOutputVar->velAcfy /= (pOutputVar->j);
+	pOutputVar->velAcfz /= (pOutputVar->j);
 
 	// mean timestep
 	Array<double, 1, 1> deltaTmean;

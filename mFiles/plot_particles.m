@@ -1,6 +1,9 @@
 clc
 clear all
 
+restoredefaultpath
+addpath('H:\PhD\simulation_model\MC_interact\src\build','-end');
+
 coords = readmatrix('coords.txt');
 data = readmatrix('data.txt');
 
@@ -25,7 +28,7 @@ fig = figure(1);
 
 j = L/numbPart;
 
-for i = 0:50:j-1
+for i = 0:10:j-1
     clf(fig)
     idx = i*numbPart;
     
@@ -43,12 +46,12 @@ for i = 0:50:j-1
     %plot arrows for easy axis and magnetic moment
     ran = (1 + i*numbPart):(numbPart*(i+1));
     qEa = quiver3(pos(ran,1),pos(ran,2),pos(ran,3),posEa(ran,1),posEa(ran,2),posEa(ran,3),'k'); %arrows of easy axes
-    qEa.LineWidth = 2;
-    qEa.AutoScaleFactor = 0.5;
+    qEa.LineWidth = 1;
+    qEa.AutoScaleFactor = 0.7;
     
     qMm = quiver3(pos(ran,1),pos(ran,2),pos(ran,3),posMm(ran,1),posMm(ran,2),posMm(ran,3),'m'); %arrows of moment
-    qMm.LineWidth = 0.7;
-    qMm.AutoScaleFactor = 0.8;
+    qMm.LineWidth = 1;
+    qMm.AutoScaleFactor = 0.7;
     
     a = lBox/2;
     

@@ -1,13 +1,16 @@
 clc
 clear all
 
+restoredefaultpath
+addpath('H:\PhD\simulation_model\MC_interact\src\build','-end');
+
 data = importdata('data.txt');
 Pxy = importdata('Pxy.txt');
 Pxz = importdata('Pxz.txt');
 Pyz = importdata('Pyz.txt');
 deltaT = importdata('dtMean.txt');
 
-idxCut = 1e5; %wait till equilibrium
+idxCut = 1; %wait till equilibrium
 
 lBox = data(1,3);          % box length
 numbPart = data(2,3);      % number of atoms
@@ -17,11 +20,19 @@ kB = 1.38064852e-23;    %bolzmann constant
 Vbox = lBox^3;
 
 %% brown relaxation time
+mu0 = 1.25663706212e-6;
 rh = data(1,1);
-Vh = 4/3*pi*rh^3;
+rm = data(1,2);
+T = data(5,3);
+kB = 1.380648e-23;
+D_anal = kB*T/(6*pi*853.8e-6*rh);
+Vm = 4/3*pi*rm^3;
+Ms = data(4,3);
 mu = 2.414e-5*10^(247.8/(T-140));
-tauB = 3*mu*Vh/(kB*T);
+Vh = 4/3*pi*rh^3;
 
+lambda = mu0*(Ms*Vm)^2/(4*pi*kB*T*8*rm^3)*(rm/rh)^3;
+tauB = 3*mu*Vh/(kB*T);
 %% smoothing and cutting
 Pxy = Pxy(idxCut:end);
 Pxz = Pxz(idxCut:end);
@@ -32,10 +43,13 @@ Pxz = smooth(Pxz);
 Pyz = smooth(Pyz);
 
 %% viscosity with Einstein relation
-timeOri = 800; %number of time origins to compute average of
+timeOri = 200; %number of time origins to compute average of
 
 L = floor(length(Pxy)/timeOri); %length of series
 tVisEin = (0:L-1)'*deltaT;  %timevector for Acf
+
+%relate t to brown relaxation
+tVisEin = tVisEin/tauB;
 
 MSDxy = zeros(L,1);
 MSDxz = zeros(L,1);
@@ -92,14 +106,11 @@ fplot(funxz,[tVisEin(idx1), tVisEin(end)],'--','Linewidth',1.5,'Color','#D95319'
 pyz = plot(tVisEin,MSDyz,'Color','#7E2F8E');
 fplot(funyz,[tVisEin(idx1), tVisEin(end)],'--','Linewidth',1.5,'Color','#7E2F8E')
 grid on
-xlabel('time in s')
+xlabel('t/\tau_B')
 ylabel('')
 legend([pxy, pxz, pyz],{'MSDxy','MSDxz','MSDyz'},'Location','northwest');
 title('Viscosity: Einstein relation')
 axis([0 inf -inf inf])
-
-%relate t to brown relaxation
-% tVisEin = tVisEin/tauB;
 
 % subplot(2,2,2)
 % hold on
@@ -117,7 +128,7 @@ axis([0 inf -inf inf])
 % legend([pxy, pxz, pyz],{'\eta_{xy}','\eta_{xz}','\eta_{yz}'},'Location','northwest');
 
 %% GK viscosity
-timeOri = 800; %number of time to compute average of
+timeOri = 200; %number of timeorigins to compute average of
 
 L = floor(length(Pxy)/timeOri); %length of series
 tVisGK = (0:L-1)'*deltaT;  %timevector for Acf
@@ -140,9 +151,9 @@ hold on
 pxy = plot(tVisGK,intAcfxy,'Color','#0072BD');
 pxz = plot(tVisGK,intAcfxz,'Color','#D95319');
 pyz = plot(tVisGK,intAcfyz,'Color','#7E2F8E');
-yline(visEinxy,'--','Color','#0072BD');
-yline(visEinxz,'--','Color','#D95319');
-yline(visEinyz,'--','Color','#7E2F8E');
+yline(visEinxy*tauB,'--','Color','#0072BD');
+yline(visEinxz*tauB,'--','Color','#D95319');
+yline(visEinyz*tauB,'--','Color','#7E2F8E');
 xline(tVisGK(idx1),'-',{'Start measurement'});
 grid on
 xlabel('t/\tau_B')
@@ -162,7 +173,7 @@ ylabel('pressure tensor Acf')
 title('Pressure Tensor Acf- GK relation')
 axis([0 inf -inf inf])
 legend([pxy, pxz, pyz],{'pacf_{xy}','pacf_{xz}','pacf_{yz}'},'Location','northeast');
-set(gca,'XScale','log');
+%set(gca,'XScale','log');
 
 function [fitresult, gof] = createFit(time, MSD)
 %% Fit: 'untitled fit 1'.
