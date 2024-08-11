@@ -30,8 +30,6 @@ Configuration::Configuration() : reader("../configuration.ini") {
 		temp_ = reader.GetReal("particle_properties", "temp", -1);
 		satMag_ = reader.GetReal("particle_properties", "satMag", -1);
 		anisEn_ = reader.GetReal("particle_properties", "anisEn", -1);
-		rhoMag_ = reader.GetReal("particle_properties", "rhoMag", -1);
-		rhoShell_ = reader.GetReal("particle_properties", "rhoShell", -1);
 
 		rMagMean_ = reader.GetReal("assemble_properties", "rMagMean", -1);
 		dShell_ = reader.GetReal("assemble_properties", "dShell", -1);
@@ -58,14 +56,9 @@ Configuration::Configuration() : reader("../configuration.ini") {
 		deltaTmax_ = reader.GetReal("solver_settings", "deltaTmax", -1);
 
 		errTolEwald_ = reader.GetReal("long_range_interactions", "errTolEwald", -1);
+		errTolSR_ = reader.GetReal("short_range_interactions", "errTolSR", -1);
 
-		nebrShellFac_ = reader.GetInteger("short_range_interactions_cell_neighbour_list", "nebrShellFac", -1);
-		errTolSR_ = reader.GetReal("short_range_interactions_cell_neighbour_list", "errTolSR", -1);
-
-		dataPoints_ = reader.GetReal("output_settings", "dataPoints", -1);
 		npCoords_ = reader.GetReal("output_settings", "npCoords", -1);
-		lAcf_ = reader.GetInteger("output_settings", "lAcf", -1);
-		tEquil_ = reader.GetReal("output_settings", "tEquil", -1);
 
 		my_pi_ = reader.GetReal("physical_constants", "my_pi", -1);
 		mu0_ = 4.0 * my_pi_ * pow(10, -7);
@@ -177,14 +170,6 @@ double Configuration::getVis() const {
 	return vis_;
 }
 
-double Configuration::getRhoMag() const {
-	return rhoMag_;
-}
-
-double Configuration::getRhoShell() const {
-	return rhoShell_;
-}
-
 // Mean magnetic radius
 double Configuration::getRMagMean() const {
 	return rMagMean_;
@@ -272,30 +257,13 @@ double Configuration::getErrTolEwald() const {
 	return errTolEwald_;
 }
 
-// NebrShellFac*rMagMean = dNebrShell (Neighbour-Shell thickness)
-double Configuration::getNebrShellFac() const {
-	return nebrShellFac_;
-}
-
 // F_vdw/F_dip to cut off short range forces
 double Configuration::getErrTolSR() const {
 	return errTolSR_;
 }
 
-double Configuration::getDataPoints() const {
-	return dataPoints_;
-}
-
 double Configuration::getNPCoords() const {
 	return npCoords_;
-}
-
-int Configuration::getLAcf() const {
-	return lAcf_;
-}
-
-double Configuration::getTEquil() const {
-	return tEquil_;
 }
 
 double Configuration::getMyPi() const {
@@ -389,8 +357,6 @@ std::string Configuration::toString() const {
 	ss << "temp_: " << temp_ << std::endl;
 	ss << "satMag_: " << satMag_ << std::endl;
 	ss << "anisEn_: " << anisEn_ << std::endl;
-	ss << "rhoMag_: " << rhoMag_ << std::endl;
-	ss << "rhoShell_: " << rhoShell_ << std::endl;
 	ss << "rMagMean_: " << rMagMean_ << std::endl;
 	ss << "dShell_: " << dShell_ << std::endl;
 	ss << "volFrac_: " << volFrac_ << std::endl;
@@ -409,12 +375,8 @@ std::string Configuration::toString() const {
 	ss << "deltaTmin_: " << deltaTmin_ << std::endl;
 	ss << "deltaTmax_: " << deltaTmax_ << std::endl;
 	ss << "errTolEwald_: " << errTolEwald_ << std::endl;
-	ss << "nebrShellFac_: " << nebrShellFac_ << std::endl;
 	ss << "errTolSR_: " << errTolSR_ << std::endl;
-	ss << "dataPoints_: " << dataPoints_ << std::endl;
 	ss << "npCoords_: " << npCoords_ << std::endl;
-	ss << "lAcf_: " << lAcf_ << std::endl;
-	ss << "tEquil_: " << tEquil_ << std::endl;
 	ss << "my_pi_: " << my_pi_ << std::endl;
 	ss << "mu0_: " << mu0_ << std::endl;
 	ss << "kB_: " << kB_ << std::endl;

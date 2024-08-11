@@ -63,7 +63,7 @@ void RKCoeffs(WorkingVar_S* pWorkVar, CoordsRot_S* pCoord, RkCoeff_S* pRkCoeffs,
 
 void AdjustTimeStep(WorkingVar_S* pWorkVar, double error, double power, double* pTDelta, bool* pCond, bool* pNoFailed);
 
-void IntegrationTrans(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, double deltaTused);
+void IntegrationTrans(WorkingVar_S* pWorkVar, Buffer_S* pBuffer,  Params_S* pParams, double deltaTused);
 
 #endif  /* SIMULATUION_H_ */
 

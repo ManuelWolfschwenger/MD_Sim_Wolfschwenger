@@ -165,10 +165,11 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 {
 	double maxVal, t, tMean;
 	double M, fAl, tAl;
+	double nCutLRtest;
 	int idx1, idx2, minIdx, maxIdx, tIter;
 	const int steps = 10000;
 	const int rcSteps = 30;
-	tIter = 20;
+	tIter = 10; //change it to small values for debugging!!!!
 
 	ArrayXXd funVals, paramArr; // should be stored on heap
 	funVals.resize(steps, 2);
@@ -209,7 +210,7 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 			cout << "error: alpha for error tolerance not found!" << endl;
 		}
 
-		paramArr(j, 2) = -funVals(idx1, 1) / (funVals(idx2, 1) - funVals(idx1, 1)) * (funVals(idx2, 0) - funVals(idx1, 0)) + funVals(idx1, 0);
+		paramArr(j, 2) = -funVals(idx1, 1) / (funVals(idx2, 1) - funVals(idx1, 1)) * (funVals(idx2, 0) - funVals(idx1, 0)) + funVals(idx1, 0); // interpolate to get root
 		pParams->alpha = paramArr(j, 2);
 		// ===>>>> now we know alpha for a given error tolerance!!!!!
 
@@ -228,8 +229,9 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 		// check if max value is greater than 0
 		if (maxVal < 0)
 		{
-			cout << "error: maximum value of error < 0 in kc computation => decrease error tolerance!" << endl;
-			cout << "rc was L*" << paramArr(j, 0) << endl;
+			cout << "attention: maximum value of error < 0 in kc computation => can't find a kc value to reach the desired error" << endl;
+			cout << "the reziprocal error made now is " << abs(maxVal) / (config->getErrTolEwald() / sqrt(2.0)) * 100.0 << "% smaller than the desired one" <<  endl;
+			cout << "rc was L*" << paramArr(j, 0) << "\n" << endl;
 			exit(-1);
 		}
 
@@ -244,9 +246,16 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 			}
 		}
 
-		paramArr(j, 3) = -funVals(idx1, 1) / (funVals(idx2, 1) - funVals(idx1, 1)) * (funVals(idx2, 0) - funVals(idx1, 0)) + funVals(idx1, 0);
-		pParams->nCutLR = paramArr(j, 3);
+		nCutLRtest = -funVals(idx1, 1) / (funVals(idx2, 1) - funVals(idx1, 1)) * (funVals(idx2, 0) - funVals(idx1, 0)) + funVals(idx1, 0);
 
+		if (nCutLRtest < 2.0) // important because otherwise function EvalSinCos doesn't work anymore
+		{
+			nCutLRtest = 2.0; // if it would be smaller and we increase the cut off => smaller error => no problem
+		}
+		
+		paramArr(j, 3) = nCutLRtest;
+		pParams->nCutLR = paramArr(j, 3);
+		
 		// ===>>>> now we know nCutLR for a given error tolerance!!!!!
 
 		//////////////////////// measuring simulation time of ewald summation ////////////////////////////////////
@@ -277,7 +286,7 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 		tMean /= tIter; // mean simulation time 
 		paramArr(j, 1) = tMean;
 
-		cout << j + 1 << ", ";
+		cout << j + 1 << ", ";		
 	}
 
 	paramArr.col(1).minCoeff(&minIdx);
@@ -286,10 +295,10 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 	pParams->nCutLR = paramArr(minIdx, 3);
 
 	cout << "\n" << endl;
-	cout << std::setprecision(10);
-	cout << "        rc        time        alpha          kc" << endl;
-	cout << paramArr << endl;
-	cout << "\n" << endl;
+	cout << std::setprecision(5);
+	//cout << "        rc        time        alpha          kc" << endl;
+	//cout << paramArr << endl;
+	//cout << "\n" << endl;
 	cout << "the optimal paramters for the  ewald-summation are: rc = L*" << paramArr(minIdx, 0) << " alpha*L = " << pParams->alpha * pParams->lBox << " kc = " << pParams->nCutLR << endl;
 
 	pParams->nCutLR = floor(paramArr(minIdx, 3) + 0.5); // round up kc for grid vector

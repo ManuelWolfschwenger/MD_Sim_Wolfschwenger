@@ -79,26 +79,22 @@ MatrixXd openData(string fileToOpen)
 // return: void
 void WriteCoords2TXT(WorkingVar_S* pWorkVar, string filename, double tInt)
 {
-	MatrixXd res(config->getNumbPart(), 13);
+	MatrixXd res(config->getNumbPart(), 10);
 
 	res.col(0) = pWorkVar->coordsTrans.pos.col(0); //x
 	res.col(1) = pWorkVar->coordsTrans.pos.col(1); //y
 	res.col(2) = pWorkVar->coordsTrans.pos.col(2); //z
 
-	res.col(3) = pWorkVar->coordsTrans.vel.col(0); //vx
-	res.col(4) = pWorkVar->coordsTrans.vel.col(1); //vy
-	res.col(5) = pWorkVar->coordsTrans.vel.col(2); //vz
+	res.col(3) = pWorkVar->coordsRot.posMm.col(0); //posMm x
+	res.col(4) = pWorkVar->coordsRot.posMm.col(1); //posMm y
+	res.col(5) = pWorkVar->coordsRot.posMm.col(2); //posMm z
 
-	res.col(6) = pWorkVar->coordsRot.posMm.col(0); //posMm x
-	res.col(7) = pWorkVar->coordsRot.posMm.col(1); //posMm y
-	res.col(8) = pWorkVar->coordsRot.posMm.col(2); //posMm z
+	res.col(6) = pWorkVar->coordsRot.posEa.col(0);  //posEa x
+	res.col(7) = pWorkVar->coordsRot.posEa.col(1); //posEa y
+	res.col(8) = pWorkVar->coordsRot.posEa.col(2); //posEa z
 
-	res.col(9) = pWorkVar->coordsRot.posEa.col(0);  //posEa x
-	res.col(10) = pWorkVar->coordsRot.posEa.col(1); //posEa y
-	res.col(11) = pWorkVar->coordsRot.posEa.col(2); //posEa z
-
-	res.col(12).setZero();
-	res(0, 12) = tInt;
+	res.col(9).setZero();
+	res(0, 9) = tInt;
 
 	saveData(filename, res, tInt);
 }
@@ -119,6 +115,23 @@ void WriteData2TXT(WorkingVar_S* pWorkVar, Params_S* pParams, string filename)
 	res(2, 2) = config->getMagFluxDens();
 	res(3, 2) = config->getSatMag();
 	res(4, 2) = config->getTemp();
+	res(5, 2) = config->getTMag();
+	res(6, 2) = config->getTRelax();
+	res(7, 2) = config->getTEnd();
+	res(8, 2) = config->getVolFrac();
+	res(9, 2) = config->getInitConfigRot();
+	res(10, 2) = config->getInitConfigTrans();
+	res(11, 2) = config->getSeed();
+	res(12, 2) = config->getAnisEn();
+	res(13, 2) = config->getDensSurfMol();
+	res(14, 2) = config->getEffLenSurfMol();
+	res(15, 2) = config->getHamaker();
+	res(16, 2) = config->getZValency();
+	res(17, 2) = config->getEpsilonR();
+	res(18, 2) = config->getGamma0();
+	res(19, 2) = config->getAbsTol();
+	res(20, 2) = config->getErrTolEwald();
+	res(21, 2) = config->getErrTolSR();
 
 	saveData(filename, res, 0);
 }
@@ -145,24 +158,6 @@ void TimeMeasure(double* pTime, bool start, string fun)
 
 /////////////eval transport coefficients/////////////////////////////
 
-// Brief: This function initializes the evaluation of the diffusion coefficient and viscosity
-// param[in/out]: OutputVar_S* pOutputVar - pointer to a OutputVar_S object
-// return: void
-void InitEvalTransCoeffs(OutputVar_S* pOutputVar)
-{
-	// GK diffusion
-	pOutputVar->i = 0; //row and col of velAcf
-	pOutputVar->j = 0;
-	pOutputVar->startEval = true;
-
-	pOutputVar->velAcfx.resize(config->getLAcf(), 1);
-	pOutputVar->velAcfy.resize(config->getLAcf(), 1);
-	pOutputVar->velAcfz.resize(config->getLAcf(), 1);
-	pOutputVar->velAcfx.setZero();
-	pOutputVar->velAcfy.setZero();
-	pOutputVar->velAcfz.setZero();
-}
-
 // Brief: This function evaluates the diffusion coefficient and the viscosity via Einstein and GK relation
 // param[in]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
 // param[in/out]: OutputVar_S* pOutputVar - pointer to a OutputVar_S object
@@ -171,27 +166,6 @@ void InitEvalTransCoeffs(OutputVar_S* pOutputVar)
 // return: void
 void EvalTransCoeffs(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, OutputVar_S* pOutputVar, Params_S* pParams)
 {
-	// initialization for first time in function
-	if (pOutputVar->startEval) //starting measurement and set first references
-	{
-		// init diffusion coeff calculation
-		pOutputVar->startEval = false;
-
-		pOutputVar->posRef = pWorkVar->coordsTrans.pos;
-		pOutputVar->velRef = pWorkVar->coordsTrans.vel;
-		pOutputVar->truePos = pWorkVar->coordsTrans.pos;
-	}
-
-	if (pOutputVar->i >= config->getLAcf())
-	{
-		// for diff and vis
-		pOutputVar->i = 0;
-		pOutputVar->j++; // adds 1 if acf is finished and new time origin is made
-
-		//diff
-		pOutputVar->velRef = pWorkVar->coordsTrans.vel;
-	}
-
 	// Einstein diffusion
 	//remove wrap around effects from particle position => Rapaport S122
 	pOutputVar->truePos = pWorkVar->coordsTrans.pos + ((pOutputVar->truePos - pWorkVar->coordsTrans.pos) / pParams->lBox).round() * pParams->lBox;
@@ -201,17 +175,7 @@ void EvalTransCoeffs(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, OutputVar_S* pOu
 	pOutputVar->MSDy.push_back((pBuffer->buffer3d.buffer1.col(1) * pBuffer->buffer3d.buffer1.col(1)).mean());
 	pOutputVar->MSDz.push_back((pBuffer->buffer3d.buffer1.col(2) * pBuffer->buffer3d.buffer1.col(2)).mean());
 
-	//GK diffusion
-	pOutputVar->velAcfx(pOutputVar->i) += (pWorkVar->coordsTrans.vel.col(0) * pOutputVar->velRef.col(0)).mean();
-	pOutputVar->velAcfy(pOutputVar->i) += (pWorkVar->coordsTrans.vel.col(1) * pOutputVar->velRef.col(1)).mean();
-	pOutputVar->velAcfz(pOutputVar->i) += (pWorkVar->coordsTrans.vel.col(2) * pOutputVar->velRef.col(2)).mean();
-
-	//GK viscosity
-	pOutputVar->Pxy += (pWorkVar->partProp.mass * pWorkVar->coordsTrans.vel.col(0) * pWorkVar->coordsTrans.vel.col(1)).sum();
-	pOutputVar->Pxz += (pWorkVar->partProp.mass * pWorkVar->coordsTrans.vel.col(0) * pWorkVar->coordsTrans.vel.col(2)).sum();
-	pOutputVar->Pyz += (pWorkVar->partProp.mass * pWorkVar->coordsTrans.vel.col(1) * pWorkVar->coordsTrans.vel.col(2)).sum();
-
-	// continue with GK viscosity
+	// GK viscosity
 	pOutputVar->Pxy /= pParams->volBox;
 	pOutputVar->Pxz /= pParams->volBox;
 	pOutputVar->Pyz /= pParams->volBox;
@@ -220,8 +184,6 @@ void EvalTransCoeffs(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, OutputVar_S* pOu
 	pOutputVar->PxyVec.push_back(pOutputVar->Pxy);
 	pOutputVar->PxzVec.push_back(pOutputVar->Pxz);
 	pOutputVar->PyzVec.push_back(pOutputVar->Pyz);
-
-	pOutputVar->i++;
 }
 
 // Brief: This function calculates the pressure tensor components for long range interactions
@@ -256,26 +218,11 @@ void EvalPressTensSR(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, Buffer_S* 
 // return: void
 void ExportDiffVis(OutputVar_S* pOutputVar, double tInt, int steps) //cut off zeros
 {
-	if (pOutputVar->i < config->getLAcf()) //if the last Acf is not finished
-	{
-		pOutputVar->velAcfx.tail(config->getLAcf() - pOutputVar->i) += pOutputVar->velAcfx.tail(config->getLAcf() - pOutputVar->i) / pOutputVar->j; //add mean to rows which are not finished to be able to clac mean at the end with same number
-		pOutputVar->velAcfy.tail(config->getLAcf() - pOutputVar->i) += pOutputVar->velAcfy.tail(config->getLAcf() - pOutputVar->i) / pOutputVar->j;
-		pOutputVar->velAcfz.tail(config->getLAcf() - pOutputVar->i) += pOutputVar->velAcfz.tail(config->getLAcf() - pOutputVar->i) / pOutputVar->j;
-	}
-
-	// GK diffusion
-	pOutputVar->velAcfx /= (pOutputVar->j + 1);
-	pOutputVar->velAcfy /= (pOutputVar->j + 1);
-	pOutputVar->velAcfz /= (pOutputVar->j + 1);
-
 	// mean timestep
 	Array<double, 1, 1> deltaTmean;
 	deltaTmean(0,0) = tInt / steps;
 
 	saveData("dtMean.txt", deltaTmean, 0);
-	saveData("velAcfx.txt", pOutputVar->velAcfx, 0);
-	saveData("velAcfy.txt", pOutputVar->velAcfy, 0);
-	saveData("velAcfz.txt", pOutputVar->velAcfz, 0);
 	saveData("Pxy.txt", Map<VectorXd, Unaligned>(pOutputVar->PxyVec.data(), pOutputVar->PxyVec.size()), 0);
 	saveData("Pxz.txt", Map<VectorXd, Unaligned>(pOutputVar->PxzVec.data(), pOutputVar->PxzVec.size()), 0);
 	saveData("Pyz.txt", Map<VectorXd, Unaligned>(pOutputVar->PyzVec.data(), pOutputVar->PyzVec.size()), 0);
