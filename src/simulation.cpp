@@ -55,6 +55,7 @@ void InitSimulation(void)
 	// set Params
 	pParams->lBox = pow(pWorkVar->partProp.volHydr.sum() / config->getVolFrac(), 1.0 / 3.0);  //box volume^1/3
 	pParams->volBox = pow(pParams->lBox, 3.0);
+	pParams->transOutput = false;
 
 	if (config->getReadFromFile())
 	{
@@ -104,7 +105,8 @@ void InitSimulation(void)
 	InitEwaldConst(pParams, pBuffer);
 
 	//init calculation of transport coefficients
-	InitEvalTransCoeffs(pOutputVar);
+	pOutputVar->posRef = pWorkVar->coordsTrans.pos;
+	pOutputVar->truePos = pWorkVar->coordsTrans.pos;
 
 	//store data in txt
 	WriteData2TXT(pWorkVar, pParams, "data.txt");
@@ -198,7 +200,6 @@ void InitParticleProps(PartProps_S* pPartProps)
 
 	pPartProps->volMag = 4.0 / 3.0 * config->getMyPi() * pPartProps->rMag.pow(3.0);														// mag volume
 	pPartProps->volHydr = 4.0 / 3.0 * config->getMyPi() * pPartProps->rHydr.pow(3.0);													// hydrdyn volume
-	pPartProps->mass = (pPartProps->volMag * config->getRhoMag() + (pPartProps->volHydr - pPartProps->volMag) * config->getRhoShell()); // mass
 	pPartProps->magMom = config->getSatMag() * pPartProps->volMag;																		// mag Moment
 	pPartProps->zetaRot = 8.0 * config->getMyPi() * config->getVis() * pPartProps->rHydr.pow(3.0);										// rotational friction coefficient
 	pPartProps->zetaTrans = 6.0 * config->getMyPi() * config->getVis() * pPartProps->rHydr;												// translational friction coefficient
@@ -229,15 +230,6 @@ void InitCoordsFromSketch(WorkingVar_S* pWorkVar, Params_S* pParams)
 
 	//define size of the dynamic arrays
 	pWorkVar->coordsTrans.pos.resize(config->getNumbPart(), 3);
-	pWorkVar->coordsTrans.vel.resize(config->getNumbPart(), 3);
-
-	//set initial velocities according to shear flow
-	pWorkVar->coordsTrans.vel.setZero();
-
-    //reference values for transport properties, why here?????????????????????
-	outputVar.posRef.resize(config->getNumbPart(), 3);
-	outputVar.truePos.resize(config->getNumbPart(), 3);
-	outputVar.velRef.resize(config->getNumbPart(), 3);
 
 	switch (config->getInitConfigTrans())
 	{
@@ -381,7 +373,6 @@ void InitCoordsFromSim(WorkingVar_S* pWorkVar, Params_S* pParams)
 
 	//define size of the dynamic arrays
 	pWorkVar->coordsTrans.pos.resize(config->getNumbPart(), 3);
-	pWorkVar->coordsTrans.vel.resize(config->getNumbPart(), 3);
 
 	pWorkVar->coordsRot.posEa.resize(config->getNumbPart(), 3);
 	pWorkVar->coordsRot.posMm.resize(config->getNumbPart(), 3);
@@ -389,10 +380,6 @@ void InitCoordsFromSim(WorkingVar_S* pWorkVar, Params_S* pParams)
 	pWorkVar->coordsTrans.pos.col(0) = initCoords.col(0);
 	pWorkVar->coordsTrans.pos.col(1) = initCoords.col(1);
 	pWorkVar->coordsTrans.pos.col(2) = initCoords.col(2);
-
-	pWorkVar->coordsTrans.vel.col(0) = initCoords.col(3);
-	pWorkVar->coordsTrans.vel.col(1) = initCoords.col(4);
-	pWorkVar->coordsTrans.vel.col(2) = initCoords.col(5);
 
 	pWorkVar->coordsRot.posMm.col(0) = initCoords.col(6);
 	pWorkVar->coordsRot.posMm.col(1) = initCoords.col(7);
@@ -555,19 +542,19 @@ void RunSimulation(void)
 			cout << "actual timestep: " << deltaT << "s" << endl;
 			cout << "actual time: " << tInt << "s" << endl;
 			cout << "simulation progress: " << countCoords / config->getNPCoords() * 100.0 << "%" << endl;
-			cout << "simulation will end in about " << (config->getTEnd() - tInt) * (runTime / tInt) / 3600.0 << "h" << "\n" << endl;
+			cout << "simulation will end in about " << (config->getTEnd() - tInt) * (runTime / tInt) / 3600.0 << "h" << endl;
 
 			countCoords++;
 
 			//store coords in txt
 			WriteCoords2TXT(&workVar, "coords.txt", tInt);
+
+			//enable translational output
+			pParams->transOutput = true;
 		}
 
-		if (tInt > config->getTEquil())
-		{
-			EvalTransCoeffs(pWorkVar, pBuffer, pOutputVar, pParams);
-		}
-
+		EvalTransCoeffs(pWorkVar, pBuffer, pOutputVar, pParams);
+	
 		// magnetization vector
 		pOutputVar->t.push_back(tInt);
 		pOutputVar->nz.push_back(pWorkVar->coordsRot.posEa.col(2).abs().mean());
@@ -586,7 +573,6 @@ void RunSimulation(void)
 
 	// store end coords in txt
 	WriteCoords2TXT(&workVar, "coords.txt", tInt);
-	//WriteCoords2TXT(&workVar, "coords_final.txt", 0);
 
 	// export diffusion and viscosity data
 	ExportDiffVis(pOutputVar, tInt, steps);
@@ -730,6 +716,7 @@ void CompInteractions(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pPara
 	pWorkVar->demagFluxDens += pWorkVar->extFluxDens;
 }
 
+
 // Brief: This function computes the demagnetizing field
 // param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
 // param[in]	: Buffer_S* pBuffer - pointer to Buffer_S object
@@ -745,7 +732,7 @@ void CompDemagField(WorkingVar_S * pWorkVar, Buffer_S * pBuffer, Params_S * pPar
 	//Ewald summation
 	CompDipFieldEwaldR(pWorkVar, pBuffer, pParams);
 	CompDipFieldEwaldF(pWorkVar, pBuffer, pParams);
-}
+} 
 
 // Brief: Two state approximation for jumps of magnetic moment
 // param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
@@ -1055,18 +1042,12 @@ void AdjustTimeStep(WorkingVar_S* pWorkVar, double error, double power, double* 
 // return: void
 void IntegrationTrans(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, double deltaTused, Params_S* pParams)
 {
-	// b/a
-	pBuffer->buffer3d.buffer1 = pWorkVar->intForce.colwise() / pWorkVar->partProp.zetaTrans;
+	pWorkVar->coordsTrans.pos += deltaTused * (pWorkVar->intForce.colwise() / pWorkVar->partProp.zetaTrans);
 
-	// a
-	pBuffer->buffer1d.buffer1 = pWorkVar->partProp.zetaTrans / pWorkVar->partProp.mass;
-
-	//pos
-	
-	pBuffer->buffer3d.buffer2 = pBuffer->buffer3d.buffer1 * deltaTused + ((pWorkVar->coordsTrans.vel - pBuffer->buffer3d.buffer1).colwise() * (pBuffer->buffer1d.buffer1.cwiseInverse())).colwise() * (1 - exp(-pBuffer->buffer1d.buffer1 * deltaTused));
-	pWorkVar->coordsTrans.pos += pBuffer->buffer3d.buffer2;
-	//cout << "maximum displacement:" << (pBuffer->buffer3d.buffer2.rowwise().norm()/pParams->lBox).maxCoeff() << " of lBox and " << (pBuffer->buffer3d.buffer2.rowwise().norm()/config->getRMagMean()).maxCoeff()<< " of rMag"<< endl;
-
-	//vel
-	pWorkVar->coordsTrans.vel = pBuffer->buffer3d.buffer1 + (pWorkVar->coordsTrans.vel - pBuffer->buffer3d.buffer1).colwise() * exp(-pBuffer->buffer1d.buffer1 * deltaTused);
+	if (pParams->transOutput)
+	{
+		pParams->transOutput = false;
+		pBuffer->buffer3d.buffer2 = deltaTused * (pWorkVar->intForce.colwise() / pWorkVar->partProp.zetaTrans);
+		cout << "maximum displacement:" << (pBuffer->buffer3d.buffer2.rowwise().norm()/pParams->lBox).maxCoeff() << " of lBox and " << (pBuffer->buffer3d.buffer2.rowwise().norm()/config->getRMagMean()).maxCoeff()<< " of rMag \n"<< endl;
+	}
 }

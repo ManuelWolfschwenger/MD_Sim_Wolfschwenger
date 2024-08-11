@@ -36,8 +36,6 @@ private:
     double satMag_ = 0;
     double anisEn_ = 0;
     double vis_ = 0;
-    double rhoMag_ = 0; 
-    double rhoShell_ = 500; 
 
     double rMagMean_ = 0;
     double dShell_ = 0;
@@ -64,14 +62,9 @@ private:
     double deltaTmax_ = 0;
 
     double errTolEwald_ = 0;
-
-    double nebrShellFac_ = 0;
     double errTolSR_ = 0;
 
-    double dataPoints_ = 0;
     double npCoords_ = 0;
-    int lAcf_ = 0;
-    double tEquil_ = 0;
 
     double my_pi_ = 0;
     double mu0_ = 0; 
@@ -124,8 +117,6 @@ public:
     double getSatMag() const;
     double getAnisEn() const;
     double getVis() const;
-    double getRhoMag() const;
-    double getRhoShell() const;
 
     double getRMagMean() const;
     double getDShell() const;
@@ -152,14 +143,9 @@ public:
     double getDeltaTMax() const;
 
     double getErrTolEwald() const;
-
-    double getNebrShellFac() const;
     double getErrTolSR() const;
 
-    double getDataPoints() const;
     double getNPCoords() const;
-    int getLAcf() const;
-    double getTEquil() const;
 
     double getMyPi() const;
     double getMu0() const; 

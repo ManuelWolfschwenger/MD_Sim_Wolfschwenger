@@ -165,10 +165,11 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 {
 	double maxVal, t, tMean;
 	double M, fAl, tAl;
+	double nCutLRtest;
 	int idx1, idx2, minIdx, maxIdx, tIter;
 	const int steps = 10000;
 	const int rcSteps = 30;
-	tIter = 20;
+	tIter = 10; //change it to small values for debugging!!!!
 
 	ArrayXXd funVals, paramArr; // should be stored on heap
 	funVals.resize(steps, 2);
@@ -209,7 +210,7 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 			cout << "error: alpha for error tolerance not found!" << endl;
 		}
 
-		paramArr(j, 2) = -funVals(idx1, 1) / (funVals(idx2, 1) - funVals(idx1, 1)) * (funVals(idx2, 0) - funVals(idx1, 0)) + funVals(idx1, 0);
+		paramArr(j, 2) = -funVals(idx1, 1) / (funVals(idx2, 1) - funVals(idx1, 1)) * (funVals(idx2, 0) - funVals(idx1, 0)) + funVals(idx1, 0); // interpolate to get root
 		pParams->alpha = paramArr(j, 2);
 		// ===>>>> now we know alpha for a given error tolerance!!!!!
 
@@ -228,8 +229,9 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 		// check if max value is greater than 0
 		if (maxVal < 0)
 		{
-			cout << "error: maximum value of error < 0 in kc computation => decrease error tolerance!" << endl;
-			cout << "rc was L*" << paramArr(j, 0) << endl;
+			cout << "attention: maximum value of error < 0 in kc computation => can't find a kc value to reach the desired error" << endl;
+			cout << "the reziprocal error made now is " << abs(maxVal) / (config->getErrTolEwald() / sqrt(2.0)) * 100.0 << "% smaller than the desired one" <<  endl;
+			cout << "rc was L*" << paramArr(j, 0) << "\n" << endl;
 			exit(-1);
 		}
 
@@ -244,9 +246,16 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 			}
 		}
 
-		paramArr(j, 3) = -funVals(idx1, 1) / (funVals(idx2, 1) - funVals(idx1, 1)) * (funVals(idx2, 0) - funVals(idx1, 0)) + funVals(idx1, 0);
-		pParams->nCutLR = paramArr(j, 3);
+		nCutLRtest = -funVals(idx1, 1) / (funVals(idx2, 1) - funVals(idx1, 1)) * (funVals(idx2, 0) - funVals(idx1, 0)) + funVals(idx1, 0);
 
+		if (nCutLRtest < 2.0) // important because otherwise function EvalSinCos doesn't work anymore
+		{
+			nCutLRtest = 2.0; // if it would be smaller and we increase the cut off => smaller error => no problem
+		}
+		
+		paramArr(j, 3) = nCutLRtest;
+		pParams->nCutLR = paramArr(j, 3);
+		
 		// ===>>>> now we know nCutLR for a given error tolerance!!!!!
 
 		//////////////////////// measuring simulation time of ewald summation ////////////////////////////////////
@@ -277,7 +286,7 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 		tMean /= tIter; // mean simulation time 
 		paramArr(j, 1) = tMean;
 
-		cout << j + 1 << ", ";
+		cout << j + 1 << ", ";		
 	}
 
 	paramArr.col(1).minCoeff(&minIdx);
@@ -315,8 +324,10 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 }
 
 // Brief: calculation of rms error of real space forces
-// param[in]:EwaldParams_S* pEwaldParams - pointer to a EwaldParams_S object
-// param[in]: double x dependent variable
+// param[in]: double x - dependent variable
+// param[in]: double M - sum of squared magnetic moments
+// param[in]: double fAl - force between aligned dipoles in contact to relate to
+// param[in]: Params_S* pParams - pointer to Params_S object
 // return: double realError - error for real space
 double FunRealError(double x, double M, double fAl, Params_S* pParams)
 {
@@ -328,10 +339,12 @@ double FunRealError(double x, double M, double fAl, Params_S* pParams)
 	return config->getFacEwald() * b * sqrt(13.0 / 6.0 * c * c + 2.0 / 15.0 * d * d - 13.0 / 15.0 * c * d) * exp(-a * a) / fAl - config->getErrTolEwald() / sqrt(2.0);
 }
 
-// Brief: calculation of rms error of fourier space forces
-// param[in]:EwaldParams_S* pEwaldParams - pointer to a EwaldParams_S object
-// param[in]: double x dependent variable
-// return: double realError - error for fourier space
+// Brief: calculation of rms error of real space forces
+// param[in]: double x - dependent variable
+// param[in]: double M - sum of squared magnetic moments
+// param[in]: double fAl - force between aligned dipoles in contact to relate to
+// param[in]: Params_S* pParams - pointer to Params_S object
+// return: double realError - error for real space
 double FunRezError(double x, double M, double fAl, Params_S* pParams)
 {
 	return  config->getFacEwald() * 8.0 * M * config->getMyPi() / pow(pParams->lBox, 3.0) * pParams->alpha * sqrt(2.0 * config->getMyPi() * x * x * x / (15.0 * config->getNumbPart())) * exp(-pow(config->getMyPi() * x / (pParams->alpha * pParams->lBox), 2.0)) / fAl - config->getErrTolEwald() / sqrt(2.0);
@@ -504,6 +517,7 @@ void CompDipInteractEwaldF(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* 
 	}
 }
 
+
 // Brief: precalculation of sin and cos for fourier space => faster calculation (from Rapaport "The Art of molecular dynamics simulation")
 // param[in]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
 // param[in/out]: Buffer_S* pBuffer - pointer to buffer_S object
@@ -523,7 +537,7 @@ void EvalSinCos(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParams)
 		pBuffer->tCos(1, i) = tt.cos();
 		pBuffer->tSin(1, i) = tt.sin();
 		u = 2.0 * pBuffer->tCos(1, i); //u...buffervec 3
-		pBuffer->tCos(2, i) = u * pBuffer->tCos(1, i);
+		pBuffer->tCos(2, i) = u * pBuffer->tCos(1, i); //only have 2 rows!!!!
 		pBuffer->tSin(2, i) = u * pBuffer->tSin(1, i);
 		tt.setConstant(1);
 		pBuffer->tCos(2, i) -= tt;
@@ -537,6 +551,7 @@ void EvalSinCos(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParams)
 		}
 	}
 }
+
 
 // Brief: calculation of dipole interaction field in real space / for partial solver steps
 // param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object

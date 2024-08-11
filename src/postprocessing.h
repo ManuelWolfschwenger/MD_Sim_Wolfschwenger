@@ -34,7 +34,6 @@ void WriteData2TXT(WorkingVar_S* pWorkVar, Params_S* pParams, string filename);
 void TimeMeasure(double* pTime, bool start, string fun);
 
 /////////////eval transport coefficients/////////////////////////////
-void InitEvalTransCoeffs(OutputVar_S* pOutputVar);
 
 void EvalTransCoeffs(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, OutputVar_S* pOutputVar, Params_S* pParams);
 

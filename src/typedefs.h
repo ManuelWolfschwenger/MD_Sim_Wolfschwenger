@@ -58,7 +58,6 @@ typedef struct
 typedef struct
 {
 	ArrayXXd 		pos;
-	ArrayXXd 		vel;
 } CoordsTrans_S;
 
 typedef struct
@@ -128,6 +127,7 @@ typedef struct
 	double nc2, gu, gr, gs, w, cFluxDens, cForce, cSurf, cSelf; //constants for fourier space of Ewaldsum
 	double alpha2, alpha4;
 	int nc;
+	bool transOutput; //counter for trans integration
 }Params_S;
 
 typedef struct
@@ -144,13 +144,10 @@ typedef struct
 	vector<double> t;                       // time vector
 	vector<double> mz; 
 	vector<double> nz;                      // magnetization vector
-	vector<double> MSDx, MSDy, MSDz;        // mean square displacement for einstein, diffusion coefficient
+	vector<double> MSDx, MSDy, MSDz, MSDrot;   // mean square displacement for einstein, diffusion coefficient
 	vector<double> PxyVec, PxzVec, PyzVec;  // vectors for einstein viscosity
-	Array<double, Dynamic, 3> posRef, truePos, velRef;   // reference positions, velocities and true positions
-	VectorXd velAcfx, velAcfy, velAcfz;                    // velocity autocorrelation function
+	Array<double, Dynamic, 3> posRef, truePos;   // reference positions, velocities and true positions
 
-	bool startEval;                                   // step where measurement starts
-	int i, j;
 	double Pxy, Pxz, Pyz;                             // pressure tensor components
 }OutputVar_S;
 
