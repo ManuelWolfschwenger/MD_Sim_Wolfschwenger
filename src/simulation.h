@@ -41,6 +41,8 @@ void InitIntCoeff(IntCoefficient_S* pIntCoeff);
 
 void InitBuffers(Buffer3d_S* pBuffer3d, Buffer1d_S* pBuffer1d);
 
+void InitTwoStateApprox(WorkingVar_S* pWorkVar);
+
 
 
 ////////////////////////*simulation functions*///////////////////////////////////////
@@ -50,6 +52,16 @@ void RunSimulation(void);
 void DefExtField(ArrayXXd* pExtFluxDens, double tInt);
 
 void DefThermFluct(WorkingVar_S* pWorkVar, double tDelta);
+
+void VectorProjection(WorkingVar_S* pWorkVar);
+
+void VectorProjectionSolver(WorkingVar_S* pWorkVar, ArrayXXd* pPosEa);
+
+ArrayXXd FindLocalMinMax(WorkingVar_S* pWorkVar, int i);
+
+void TwoStateApprox(WorkingVar_S* pWorkVar, double deltaT);
+
+void TwoStateApproxSolver(WorkingVar_S* pWorkVar, ArrayXXd* pPosEa);
 
 void Integration(WorkingVar_S* pWorkVar, IntCoefficient_S* pIntCoeff, double* pTDelta, double* pTInt);
 

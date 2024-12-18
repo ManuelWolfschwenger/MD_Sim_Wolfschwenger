@@ -9,7 +9,13 @@
 
 // external libaries
 #include <Eigen/Dense>
+#include <cmath>
+#include <iostream>
+#include <bits/stdc++.h>
 
-void RowWiseCrossProd(Eigen::ArrayXXd* pA, Eigen::ArrayXXd* pB, Eigen::ArrayXXd* pRes);
+using namespace Eigen;
+using namespace std;
+
+void RowWiseCrossProd(ArrayXXd* pA, ArrayXXd* pB, ArrayXXd* pRes);
 
 #endif  /* MATHFUN_H_ */

@@ -61,11 +61,29 @@ void WriteData2TXT(WorkingVar_S* pWorkVar, string filename)
 
 	res.setZero();
 	res(0) = config->getAnisEn();
-	res(1) = config->getNumbPart();
+	res(1) = config->getVis();
 	res(2) = config->getMagFluxDens();
 	res(3) = config->getSatMag();
 	res(4) = config->getTemp();
 	res(5) = config->getRMagMean();
+	res(6) = config->getMagDamp();
 
 	saveData(filename, res, 0);
+}
+
+// Brief: Evaluation of angular velocity of particles
+// param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
+// param[in/out]: OutputVar_S* pOutputVar - pointer to OutputVar_S object
+void evalOmega(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar)
+{
+	// m x n
+	RowWiseCrossProd(&pWorkVar->coords.posMm, &pWorkVar->coords.posEa, &pWorkVar->buffer3d.buffer1);
+
+	// -2*K1*V*(m*n)(mxn) + zeta*omega_fluid + Nth
+	pWorkVar->coords.omegaEa = (-2*config->getAnisEn()*(pWorkVar->buffer3d.buffer1.colwise()*((pWorkVar->coords.posMm*pWorkVar->coords.posEa).rowwise().sum())) + pWorkVar->thermTorque).colwise()*(pWorkVar->partProp.volMag/pWorkVar->partProp.zetaRot);
+	pWorkVar->coords.omegaEa.col(1) += config->getShearRate()*0.5;
+
+	pOutputVar->omegaX.push_back(pWorkVar->coords.omegaEa.col(0).mean());
+	pOutputVar->omegaY.push_back(pWorkVar->coords.omegaEa.col(1).mean());
+	pOutputVar->omegaZ.push_back(pWorkVar->coords.omegaEa.col(2).mean());
 }

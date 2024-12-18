@@ -11,12 +11,10 @@ Configuration::Configuration() : reader("../configuration.ini") {
 		initConfigRot_ = reader.GetInteger("initial_configuration", "INIT_CONFIG_ROT", -1);
 
 		sizeDist_ = reader.GetInteger("size_distribution", "SIZE_DIST", -1);
+		enableMobilization_ = reader.GetBoolean("mobilization", "ENABLE_MOBILIZATION", false);
 
-		enableThermField_ = reader.GetBoolean("thermal_fluctuations", "ENABLE_THERM_FIELD", false);
 		enableThermTorque_ = reader.GetBoolean("thermal_fluctuations", "ENABLE_THERM_TORQUE", false);
 		seed_ = reader.GetInteger("thermal_fluctuations", "seed", -1);
-
-		enableMobilization_ = reader.GetBoolean("mobilization", "ENABLE_MOBILIZATION", false);
 
 		solver_ = reader.GetInteger("adaptive_timestepping_solver", "SOLVER", -1);
 
@@ -28,6 +26,7 @@ Configuration::Configuration() : reader("../configuration.ini") {
 
 		rMagMean_ = reader.GetReal("assemble_properties", "rMagMean", -1);
 		rHydrMean_ = reader.GetReal("assemble_properties", "rHydrMean", -1);
+		shearRate_ = reader.GetReal("assemble_properties", "shearRate", -1);
 
 		tMag_ = reader.GetReal("time_settings", "tMag", -1);
 		tRelax_ = reader.GetReal("time_settings", "tRelax", -1);
@@ -38,6 +37,7 @@ Configuration::Configuration() : reader("../configuration.ini") {
 		absTol_ = reader.GetReal("solver_settings", "absTol", -1);
 		deltaTmin_ = reader.GetReal("solver_settings", "deltaTmin", -1);
 		deltaTmax_ = reader.GetReal("solver_settings", "deltaTmax", -1);
+		errTolMinMax_ = reader.GetReal("solver_settings", "errTolMinMax", -1);
 
 		dataPoints_ = reader.GetReal("output_settings", "dataPoints", -1);
 
@@ -45,8 +45,6 @@ Configuration::Configuration() : reader("../configuration.ini") {
 		mu0_ = 4.0 * my_pi_ * pow(10, -7);
 		kB_ = reader.GetReal("physical_constants", "kB", -1);
 		gyroMr_ = reader.GetReal("physical_constants", "gyroMr", -1);
-
-		velMmConst_ = gyroMr_ / (1.0 + pow(magDamp_, 2.0));
 		anisConst_ = 2.0 * anisEn_ / satMag_;
 
 		vis_ = (2.414e-5) * pow(10, 247.8 / (temp_ - 140));
@@ -72,10 +70,6 @@ int Configuration::getSizeDist() const {
 
 bool Configuration::getEnableMobilization() const {
 	return enableMobilization_;
-}
-
-bool Configuration::getEnableThermField() const {
-	return enableThermField_;
 }
 
 bool Configuration::getEnableThermTorque() const {
@@ -129,6 +123,10 @@ double Configuration::getRHydrMean() const {
 	return rHydrMean_;
 }
 
+double Configuration::getShearRate() const {
+	return shearRate_;
+}
+
 // Magnetization time in s
 double Configuration::getTMag() const {
 	return tMag_;
@@ -163,6 +161,10 @@ double Configuration::getDeltaTMax() const {
 	return deltaTmax_;
 }
 
+double Configuration::getErrTolMinMax() const {
+	return errTolMinMax_;
+}
+
 double Configuration::getDataPoints() const {
 	return dataPoints_;
 }
@@ -184,10 +186,6 @@ double Configuration::getKB() const {
 // Gyromagnetic ratio
 double Configuration::getGyroMr() const {
 	return gyroMr_;
-}
-
-double Configuration::getVelMmConst() const {
-	return velMmConst_;
 }
 
 double Configuration::getAnisConst() const {
@@ -215,6 +213,7 @@ std::string Configuration::toString() const {
 	ss << "anisEn_: " << anisEn_ << std::endl;
 	ss << "rMagMean_: " << rMagMean_ << std::endl;
 	ss << "rHydrMean_: " << rHydrMean_ << std::endl;
+	ss << "shearRate_: " << shearRate_ << std::endl;
 	ss << "tMag_: " << tMag_ << std::endl;
 	ss << "tRelax_: " << tRelax_ << std::endl;
 	ss << "deltaTinit_: " << deltaTinit_ << std::endl;
@@ -222,12 +221,12 @@ std::string Configuration::toString() const {
 	ss << "absTol_: " << absTol_ << std::endl;
 	ss << "deltaTmin_: " << deltaTmin_ << std::endl;
 	ss << "deltaTmax_: " << deltaTmax_ << std::endl;
+	ss << "errTolMinMax_: " << errTolMinMax_ << std::endl;
 	ss << "dataPoints_: " << dataPoints_ << std::endl;
 	ss << "my_pi_: " << my_pi_ << std::endl;
 	ss << "mu0_: " << mu0_ << std::endl;
 	ss << "kB_: " << kB_ << std::endl;
 	ss << "gyroMr_: " << gyroMr_ << std::endl;
-	ss << "velMmConst_: " << velMmConst_ << std::endl;
 	ss << "anisConst_: " << anisConst_ << std::endl;
 	ss << "vis_: " << vis_ << std::endl;
 	ss << "sigma_: " << sigma_ << std::endl;

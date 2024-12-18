@@ -34,6 +34,7 @@ private:
 
     double rMagMean_ = 0;
     double rHydrMean_ = 0;
+    double shearRate_ = 0;
 
     double tMag_ = 0;
     double tRelax_ = 0;
@@ -44,6 +45,7 @@ private:
     double absTol_ = 0;
     double deltaTmin_ = 0;
     double deltaTmax_ = 0;
+    double errTolMinMax_ = 0;
 
     double dataPoints_ = 0;
 
@@ -71,8 +73,6 @@ public:
     int getSizeDist() const;
 
     bool getEnableMobilization() const;
-
-    bool getEnableThermField() const;
     bool getEnableThermTorque() const;
     int getSeed() const;
 
@@ -87,6 +87,7 @@ public:
 
     double getRMagMean() const;
     double getRHydrMean() const;
+    double getShearRate() const;
 
     double getTMag() const;
     double getTRelax() const;
@@ -97,6 +98,7 @@ public:
     double getAbsTol() const;
     double getDeltaTMin() const;
     double getDeltaTMax() const;
+    double getErrTolMinMax() const;
 
     double getDataPoints() const;
 
@@ -105,7 +107,6 @@ public:
     double getKB() const;
     double getGyroMr() const;
 
-    double getVelMmConst() const;
     double getAnisConst() const;
 
     double getSigma() const;

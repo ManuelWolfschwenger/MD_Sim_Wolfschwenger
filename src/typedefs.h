@@ -28,6 +28,13 @@ typedef struct
 	ArrayXd 		zetaRot;
 	ArrayXd 		velEaConst1;
 	ArrayXd 		velEaConst2;
+	ArrayXd 		tau0;
+	ArrayXd 		psi;
+	ArrayXd         sinPsi;
+	ArrayXd         cosPsi;
+	ArrayXd         sinPsi2;
+	ArrayXd         dPotEn;
+	ArrayXd         ddPotEn;
 } PartProps_S;
 
 // particale coordinates structure
@@ -35,12 +42,19 @@ typedef struct
 {
 	ArrayXXd 		posMm;
 	ArrayXXd 		posEa;
+	ArrayXXd        vecNormal;
+	ArrayXXd        mProj;
+	ArrayXXd        Bvec;
+	ArrayXd         psiIs;
+	ArrayXd         phiIs;
+	ArrayXi         state;
+	ArrayXXd 		omegaEa;
 } Coord_S;
 
 typedef struct
 {
-	ArrayXXd 		knMm;
 	ArrayXXd 		knEa;
+	ArrayXXd 		knEaAss;
 } RkCoeff_S;
 
 // integration coefficant structure
@@ -82,7 +96,6 @@ typedef struct
 	Coord_S     	coords;     	// Coord_S object
 	ArrayXXd 		extFluxDens;	// 
 	ArrayXXd 		thermTorque;	// 
-	ArrayXXd 		thermField;		//
 	Buffer3d_S		buffer3d;		// 3 dimensional buffers
 	Buffer1d_S		buffer1d;		// 1 dimensional buffers
 } WorkingVar_S;
@@ -91,8 +104,8 @@ typedef struct
 {
 	vector<double>  t;         //time vector
 	vector<double>  mZ;      //magnetization vector
-	vector<double>  nZ;
-	vector<double>  phi;      //magnetization vector
+	vector<double>  nZ;      //magnetization vector
+	vector<double> omegaX, omegaY, omegaZ;
 }OutputVar_S;
 
 #endif 

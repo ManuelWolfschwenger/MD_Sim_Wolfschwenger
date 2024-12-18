@@ -17,6 +17,7 @@
 //internal libaries
 #include "typedefs.h"
 #include "configuration.h"
+#include "mathFun.h"
 
 // namespace definition
 using namespace Eigen;
@@ -27,5 +28,7 @@ void saveData(string filename, MatrixXd  matrix, double tInt);
 void WriteData2TXT(WorkingVar_S* pWorkVar, string filename);
 
 void WriteCoords2TXT(WorkingVar_S* pWorkVar, string filename, double tInt);
+
+void evalOmega(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar);
 
 #endif  /* POSTPROCESSING_H_ */
