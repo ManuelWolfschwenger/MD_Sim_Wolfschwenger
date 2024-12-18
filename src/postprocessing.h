@@ -13,37 +13,19 @@
 #include <Eigen/Dense>
 #include <iostream>
 #include <cmath>
-#include <iomanip>
 
 //internal libaries
 #include "typedefs.h"
+#include "configuration.h"
 
 // namespace definition
 using namespace Eigen;
 using namespace std;
 
+void saveData(string filename, MatrixXd  matrix, double tInt);
 
-void saveData(string fileName, MatrixXd  matrix, double tInt);
-
-MatrixXd openData(string fileToOpen);
+void WriteData2TXT(WorkingVar_S* pWorkVar, string filename);
 
 void WriteCoords2TXT(WorkingVar_S* pWorkVar, string filename, double tInt);
 
-void WriteData2TXT(WorkingVar_S* pWorkVar, Params_S* pParams, string filename);
-
-void TimeMeasure(double* pTime, bool start, string fun);
-
-/////////////eval transport coefficients/////////////////////////////
-
-void EvalTransCoeffs(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, OutputVar_S* pOutputVar, Params_S* pParams);
-
-void EvalPressTensLRreal(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, Array<double,1,3>* pForce, int i);
-
-void EvalPressTensLRrez(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, ArrayXXd* pForces);
-
-void EvalPressTensSR(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, Array<double,1,3>* pForce, int i);
-
-void ExportDiffVis(OutputVar_S* pOutputVar, double tInt, int steps);
-
 #endif  /* POSTPROCESSING_H_ */
-

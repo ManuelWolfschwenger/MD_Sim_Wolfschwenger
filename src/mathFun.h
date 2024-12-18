@@ -10,22 +10,6 @@
 // external libaries
 #include <Eigen/Dense>
 
-//internal header files
-#include "typedefs.h"
-
-using namespace Eigen;
-
-
-void RowWiseCrossProd(ArrayXXd* pA, ArrayXXd* pB, ArrayXXd* pRes);
-
-double IntegralEffDiameter(double dMag);
-
-double funEffDiameter(double dMag, double r);
-
-void VectorProjection(WorkingVar_S* pWorkVar);
-
-void VectorProjectionSolver(WorkingVar_S* pWorkVar, ArrayXXd* pPosEa);
-
-ArrayXXd FindLocalMinMax(WorkingVar_S* pWorkVar, int i);
+void RowWiseCrossProd(Eigen::ArrayXXd* pA, Eigen::ArrayXXd* pB, Eigen::ArrayXXd* pRes);
 
 #endif  /* MATHFUN_H_ */

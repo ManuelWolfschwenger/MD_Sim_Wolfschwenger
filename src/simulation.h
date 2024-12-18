@@ -13,17 +13,19 @@
 #include <EigenRand/EigenRand>
 #include <time.h>
 #include <cmath>
-#include <fstream>
 
 // internal headers files
-#include "typedefs.h"
 #include "mathFun.h"
 #include "postprocessing.h"
-#include "interactions.h"
+#include "typedefs.h"
+#include "configuration.h"
 
 // namespace definition
 using namespace Eigen;
 using namespace std;
+
+// Brief: Runs the complete simulation
+// Return: program status
 
 int main(void);
 
@@ -33,17 +35,11 @@ void InitSimulation(void);
 
 void InitParticleProps(PartProps_S* pPartProps);
 
-void InitCoordsFromSketch(WorkingVar_S* pWorkVar, Params_S* pParams);
-
-void InitCoordsFromSim(WorkingVar_S* pWorkVar, Params_S* pParams);
+void InitCoords(Coord_S* pCoords);
 
 void InitIntCoeff(IntCoefficient_S* pIntCoeff);
 
-void InitBuffers(Buffer_S* pBuffer);
-
-void InitTwoStateApprox(WorkingVar_S* pWorkVar, Buffer_S* pBuffer);
-
-void TwoStateApproxSolver(WorkingVar_S* pWorkVar, Buffer_S * pBuffer, ArrayXXd* pPosEa);
+void InitBuffers(Buffer3d_S* pBuffer3d, Buffer1d_S* pBuffer1d);
 
 
 
@@ -53,21 +49,12 @@ void RunSimulation(void);
 
 void DefExtField(ArrayXXd* pExtFluxDens, double tInt);
 
-void DefThermFluct(WorkingVar_S * pWorkVar, Buffer1d_S * pBuffer, double deltaT);
+void DefThermFluct(WorkingVar_S* pWorkVar, double tDelta);
 
-void ApplyBoundaryCondArr(ArrayXXd* pArr, Buffer3d_S* pBuffer3d, Params_S* pParams);
+void Integration(WorkingVar_S* pWorkVar, IntCoefficient_S* pIntCoeff, double* pTDelta, double* pTInt);
 
-void CompInteractions(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParams, OutputVar_S* pOutputVar);
-
-void TwoStateApprox(WorkingVar_S* pWorkVar, Buffer_S * pBuffer, double deltaT);
-
-void IntegrationRot(WorkingVar_S* pWorkVar, IntCoefficient_S* pIntCoeff, Buffer_S* pBuffer, Params_S* pParams, double* pTDelta, double* pTInt);
-
-void RKCoeffs(WorkingVar_S* pWorkVar, CoordsRot_S* pCoord, RkCoeff_S* pRkCoeffs, Buffer_S* pBuffer);
+void RKCoeffs(WorkingVar_S* pWorkVar, Coord_S* pCoord, RkCoeff_S* pRkCoeffs);
 
 void AdjustTimeStep(WorkingVar_S* pWorkVar, double error, double power, double* pTDelta, bool* pCond, bool* pNoFailed);
 
-void IntegrationTrans(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, double deltaTused, Params_S* pParams);
-
 #endif  /* SIMULATUION_H_ */
-
