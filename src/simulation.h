@@ -41,7 +41,9 @@ void InitIntCoeff(IntCoefficient_S* pIntCoeff);
 
 void InitBuffers(Buffer_S* pBuffer);
 
-void InitTwoStateApprox(WorkingVar_S* pWorkVar);
+void InitTwoStateApprox(WorkingVar_S* pWorkVar, Buffer_S* pBuffer);
+
+void TwoStateApproxSolver(WorkingVar_S* pWorkVar, Buffer_S * pBuffer, ArrayXXd* pPosEa);
 
 
 
@@ -57,7 +59,7 @@ void ApplyBoundaryCondArr(ArrayXXd* pArr, Buffer3d_S* pBuffer3d, Params_S* pPara
 
 void CompInteractions(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParams, OutputVar_S* pOutputVar);
 
-void TwoStateApprox(WorkingVar_S* pWorkVar, double deltaT);
+void TwoStateApprox(WorkingVar_S* pWorkVar, Buffer_S * pBuffer, double deltaT);
 
 void IntegrationRot(WorkingVar_S* pWorkVar, IntCoefficient_S* pIntCoeff, Buffer_S* pBuffer, Params_S* pParams, double* pTDelta, double* pTInt);
 

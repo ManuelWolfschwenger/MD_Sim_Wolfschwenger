@@ -96,6 +96,7 @@ typedef struct
 typedef struct
 {
 	ArrayXd 		buffer1;		//	1 dimensional buffer
+	ArrayXb 		bufferB;		//	1 dimensional buffer
 } Buffer1d_S;
 
 //temporal vector buffer
@@ -144,11 +145,11 @@ typedef struct
 	vector<double> t;                       // time vector
 	vector<double> mz; 
 	vector<double> nz;                      // magnetization vector
-	vector<double> MSDx, MSDy, MSDz, MSDrot;   // mean square displacement for einstein, diffusion coefficient
-	vector<double> PxyVec, PxzVec, PyzVec;  // vectors for einstein viscosity
+	vector<double> MSDx, MSDy, MSDz;   // mean square displacement for einstein, diffusion coefficient
+	vector<double> PxyVec, PxzVec, PyzVec, PyxVec, PzxVec, PzyVec, PxxVec, PyyVec, PzzVec;  // vectors for einstein viscosity
 	Array<double, Dynamic, 3> posRef, truePos;   // reference positions, velocities and true positions
 
-	double Pxy, Pxz, Pyz;                             // pressure tensor components
+	double Pxy, Pxz, Pyz, Pyx, Pzx, Pzy, Pxx, Pyy, Pzz;                    // pressure tensor components
 }OutputVar_S;
 
 // working variables structure

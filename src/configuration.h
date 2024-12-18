@@ -60,6 +60,7 @@ private:
     double absTol_ = 0;
     double deltaTmin_ = 0;
     double deltaTmax_ = 0;
+    double errTolMinMax_ = 0;
 
     double errTolEwald_ = 0;
     double errTolSR_ = 0;
@@ -141,6 +142,7 @@ public:
     double getAbsTol() const;
     double getDeltaTMin() const;
     double getDeltaTMax() const;
+    double getErrTolMinMax() const;
 
     double getErrTolEwald() const;
     double getErrTolSR() const;

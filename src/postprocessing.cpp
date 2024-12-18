@@ -132,6 +132,7 @@ void WriteData2TXT(WorkingVar_S* pWorkVar, Params_S* pParams, string filename)
 	res(19, 2) = config->getAbsTol();
 	res(20, 2) = config->getErrTolEwald();
 	res(21, 2) = config->getErrTolSR();
+	res(22, 2) = config->getMagDamp();
 
 	saveData(filename, res, 0);
 }
@@ -179,55 +180,109 @@ void EvalTransCoeffs(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, OutputVar_S* pOu
 	pOutputVar->Pxy /= pParams->volBox;
 	pOutputVar->Pxz /= pParams->volBox;
 	pOutputVar->Pyz /= pParams->volBox;
+	pOutputVar->Pyx /= pParams->volBox;
+	pOutputVar->Pzx /= pParams->volBox;
+	pOutputVar->Pzy /= pParams->volBox;
+	pOutputVar->Pxx /= pParams->volBox;
+	pOutputVar->Pyy /= pParams->volBox;
+	pOutputVar->Pzz /= pParams->volBox;
 
 	//Einstein viscosity
 	pOutputVar->PxyVec.push_back(pOutputVar->Pxy);
 	pOutputVar->PxzVec.push_back(pOutputVar->Pxz);
 	pOutputVar->PyzVec.push_back(pOutputVar->Pyz);
+	pOutputVar->PyxVec.push_back(pOutputVar->Pyx);
+	pOutputVar->PzxVec.push_back(pOutputVar->Pzx);
+	pOutputVar->PzyVec.push_back(pOutputVar->Pzy);
+	pOutputVar->PxxVec.push_back(pOutputVar->Pxx);
+	pOutputVar->PyyVec.push_back(pOutputVar->Pyy);
+	pOutputVar->PzzVec.push_back(pOutputVar->Pzz);
 }
 
-// Brief: This function calculates the pressure tensor components for long range interactions
+// Brief: This function calculates the pressure tensor components for long range interactions of the real part
 // param[in]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
 // param[in/out]: OutputVar_S* pOutputVar - pointer to a OutputVar_S object
-// param[in]	: Buffer_S* pBuffer - pointer to Buffer_S object
+// param[in]: Array<double,3,1>* pForce - pointer to force on particle i by particle j
 // param[in]    : int i - index of interaction pair
 // return: void
-void EvalPressTensLR(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, Buffer_S* pBuffer, int i)
+void EvalPressTensLRreal(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, Array<double,1,3>* pForce, int i)
 {
-	pOutputVar->Pxy += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(0) * pBuffer->bufferVec.vec1(1);
-	pOutputVar->Pxz += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(0) * pBuffer->bufferVec.vec1(2);
-	pOutputVar->Pyz += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(1) * pBuffer->bufferVec.vec1(2);
+	pOutputVar->Pxy += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(0) * (*pForce)(1);
+	pOutputVar->Pxz += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(0) * (*pForce)(2);
+	pOutputVar->Pyz += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(1) * (*pForce)(2);
+
+	pOutputVar->Pyx += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(1) * (*pForce)(0);
+	pOutputVar->Pzx += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(2) * (*pForce)(0);
+	pOutputVar->Pzy += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(2) * (*pForce)(1);
+
+	pOutputVar->Pxx += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(0) * (*pForce)(0);
+	pOutputVar->Pyy += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(1) * (*pForce)(1);
+	pOutputVar->Pzz += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(2) * (*pForce)(2);
+}
+
+// Brief: This function calculates the pressure tensor components for long range interactions of the reciprocal part
+// param[in]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
+// param[in/out]: OutputVar_S* pOutputVar - pointer to a OutputVar_S object
+// param[in]    : ArrayXXd* pForces - pointer to force array from reciprocal part
+// return: void
+void EvalPressTensLRrez(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, ArrayXXd* pForces)
+{
+	pOutputVar->Pxy += (pWorkVar->coordsTrans.pos.col(0)*(*pForces).col(1)).sum();
+	pOutputVar->Pxz += (pWorkVar->coordsTrans.pos.col(0)*(*pForces).col(2)).sum();
+	pOutputVar->Pyz += (pWorkVar->coordsTrans.pos.col(1)*(*pForces).col(2)).sum();
+
+	pOutputVar->Pyx += (pWorkVar->coordsTrans.pos.col(1)*(*pForces).col(0)).sum();
+	pOutputVar->Pzx += (pWorkVar->coordsTrans.pos.col(2)*(*pForces).col(0)).sum();
+	pOutputVar->Pzy += (pWorkVar->coordsTrans.pos.col(2)*(*pForces).col(1)).sum();
+
+	pOutputVar->Pxx += (pWorkVar->coordsTrans.pos.col(0)*(*pForces).col(0)).sum();
+	pOutputVar->Pyy += (pWorkVar->coordsTrans.pos.col(1)*(*pForces).col(1)).sum();
+	pOutputVar->Pzz += (pWorkVar->coordsTrans.pos.col(2)*(*pForces).col(2)).sum();
 }
 
 // Brief: This function calculates the pressure tensor components for short range interactions
-// param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
-// param[in] : Buffer_S* pBuffer - pointer to buffer_S object
-// param[in]: int idx1, int idx2, particle indizes
-// param[in]: int i, pair indizes
+// param[in]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
+// param[in/out]: OutputVar_S* pOutputVar - pointer to a OutputVar_S object
+// param[in]: Array<double,3,1>* pForce - pointer to force on particle i by particle j
+// param[in]    : int i - index of interaction pair
 // return: void
-void EvalPressTensSR(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, Buffer_S* pBuffer, int i)
+void EvalPressTensSR(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, Array<double,1,3>* pForce, int i)
 {
-	pOutputVar->Pxy += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(0) * pBuffer->bufferVec.vec2(1);
-	pOutputVar->Pxz += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(0) * pBuffer->bufferVec.vec2(2);
-	pOutputVar->Pyz += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(1) * pBuffer->bufferVec.vec2(2);
+	pOutputVar->Pxy += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(0) * (*pForce)(1);
+	pOutputVar->Pxz += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(0) * (*pForce)(2);
+	pOutputVar->Pyz += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(1) * (*pForce)(2);
+
+	pOutputVar->Pyx += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(1) * (*pForce)(0);
+	pOutputVar->Pzx += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(2) * (*pForce)(0);
+	pOutputVar->Pzy += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(2) * (*pForce)(1);
+
+	pOutputVar->Pxx += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(0) * (*pForce)(0);
+	pOutputVar->Pyy += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(1) * (*pForce)(1);
+	pOutputVar->Pzz += pWorkVar->intLists.intVecsLen(i) * pWorkVar->intLists.intVecsCoords.row(i)(2) * (*pForce)(2);
 }
 
 // Brief: This function calculates the mean of the acf and resizes the arrays to export them as txt
 // param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
 // param[in]	: Buffer_S* pBuffer - pointer to Buffer_S object
 // return: void
-void ExportDiffVis(OutputVar_S* pOutputVar, double tInt, int steps) //cut off zeros
+void ExportDiffVis(OutputVar_S* pOutputVar, double tInt, int steps)
 {
 	// mean timestep
 	Array<double, 1, 1> deltaTmean;
 	deltaTmean(0,0) = tInt / steps;
 
 	saveData("dtMean.txt", deltaTmean, 0);
+	saveData("dtMean.txt", deltaTmean, 0);
 	saveData("Pxy.txt", Map<VectorXd, Unaligned>(pOutputVar->PxyVec.data(), pOutputVar->PxyVec.size()), 0);
 	saveData("Pxz.txt", Map<VectorXd, Unaligned>(pOutputVar->PxzVec.data(), pOutputVar->PxzVec.size()), 0);
 	saveData("Pyz.txt", Map<VectorXd, Unaligned>(pOutputVar->PyzVec.data(), pOutputVar->PyzVec.size()), 0);
+	saveData("Pyx.txt", Map<VectorXd, Unaligned>(pOutputVar->PyxVec.data(), pOutputVar->PyxVec.size()), 0);
+	saveData("Pzx.txt", Map<VectorXd, Unaligned>(pOutputVar->PzxVec.data(), pOutputVar->PzxVec.size()), 0);
+	saveData("Pzy.txt", Map<VectorXd, Unaligned>(pOutputVar->PzyVec.data(), pOutputVar->PzyVec.size()), 0);
+	saveData("Pxx.txt", Map<VectorXd, Unaligned>(pOutputVar->PxxVec.data(), pOutputVar->PxxVec.size()), 0);
+	saveData("Pyy.txt", Map<VectorXd, Unaligned>(pOutputVar->PyyVec.data(), pOutputVar->PyyVec.size()), 0);
+	saveData("Pzz.txt", Map<VectorXd, Unaligned>(pOutputVar->PzzVec.data(), pOutputVar->PzzVec.size()), 0);
 	saveData("MSDx.txt", Map<VectorXd, Unaligned>(pOutputVar->MSDx.data(), pOutputVar->MSDx.size()), 0);
 	saveData("MSDy.txt", Map<VectorXd, Unaligned>(pOutputVar->MSDy.data(), pOutputVar->MSDy.size()), 0);
 	saveData("MSDz.txt", Map<VectorXd, Unaligned>(pOutputVar->MSDz.data(), pOutputVar->MSDz.size()), 0);
-	saveData("MSDrot.txt", Map<VectorXd, Unaligned>(pOutputVar->MSDrot.data(), pOutputVar->MSDrot.size()), 0);
 }

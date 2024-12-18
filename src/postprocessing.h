@@ -37,9 +37,11 @@ void TimeMeasure(double* pTime, bool start, string fun);
 
 void EvalTransCoeffs(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, OutputVar_S* pOutputVar, Params_S* pParams);
 
-void EvalPressTensLR(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, Buffer_S* pBuffer, int i);
+void EvalPressTensLRreal(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, Array<double,1,3>* pForce, int i);
 
-void EvalPressTensSR(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, Buffer_S* pBuffer, int i);
+void EvalPressTensLRrez(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, ArrayXXd* pForces);
+
+void EvalPressTensSR(WorkingVar_S* pWorkVar, OutputVar_S* pOutputVar, Array<double,1,3>* pForce, int i);
 
 void ExportDiffVis(OutputVar_S* pOutputVar, double tInt, int steps);
 

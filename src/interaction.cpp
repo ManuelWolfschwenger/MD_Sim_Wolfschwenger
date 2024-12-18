@@ -173,7 +173,7 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 
 	ArrayXXd funVals, paramArr; // should be stored on heap
 	funVals.resize(steps, 2);
-	paramArr.resize(rcSteps, 4); // rc, time, alpha, kc
+	paramArr.resize(rcSteps, 5); // rc, time, alpha, kc, meet err tol?
 
 	// constants from particle properties
 	M = (pWorkVar->partProp.magMom.pow(2.0)).sum();
@@ -226,27 +226,28 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 		funVals.col(1).maxCoeff(&maxIdx);
 		maxVal = funVals.col(1).maxCoeff();
 
-		// check if max value is greater than 0
+		// check if max value is greater than 0, if not, take nCut for the max. value
 		if (maxVal < 0)
 		{
-			cout << "attention: maximum value of error < 0 in kc computation => can't find a kc value to reach the desired error" << endl;
-			cout << "the reziprocal error made now is " << abs(maxVal) / (config->getErrTolEwald() / sqrt(2.0)) * 100.0 << "% smaller than the desired one" <<  endl;
-			cout << "rc was L*" << paramArr(j, 0) << "\n" << endl;
-			exit(-1);
+			nCutLRtest = funVals(maxIdx, 0);
+			paramArr(j,4) = 1; //mark that for this rc, the error is smaller
 		}
-
-		// start at max val => decaying curve
-		for (int i = maxIdx; i < steps; i++)
+		else
 		{
-			if (funVals(i, 1) < 0)
+			// start at max val => decaying curve, find root
+			for (int i = maxIdx; i < steps; i++)
 			{
-				idx2 = i;
-				idx1 = i - 1;
-				break;
+				if (funVals(i, 1) < 0)
+				{
+					idx2 = i;
+					idx1 = i - 1;
+					break;
+				}
 			}
-		}
 
-		nCutLRtest = -funVals(idx1, 1) / (funVals(idx2, 1) - funVals(idx1, 1)) * (funVals(idx2, 0) - funVals(idx1, 0)) + funVals(idx1, 0);
+			nCutLRtest = -funVals(idx1, 1) / (funVals(idx2, 1) - funVals(idx1, 1)) * (funVals(idx2, 0) - funVals(idx1, 0)) + funVals(idx1, 0); //interpolate
+			paramArr(j,4) = 0; //mark that for this rc the error tolerance is as defined
+		}
 
 		if (nCutLRtest < 2.0) // important because otherwise function EvalSinCos doesn't work anymore
 		{
@@ -319,6 +320,15 @@ void CompEwaldParams(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParam
 	double errRealTorque = config->getFacEwald() * M / sqrt(pow(pParams->lBox, 3.0) * pow(pParams->alpha, 4.0) * pow(pParams->rCutLR, 7.0) * config->getNumbPart()) * sqrt(0.5 * bc * bc + 0.2 * cc * cc) * exp(-pow(pParams->alpha * pParams->rCutLR, 2.0));
 	double errRezTorque = config->getFacEwald() * 4.0 * M / pow(pParams->lBox, 2.0) * pParams->alpha * sqrt(config->getMyPi() * pParams->nCutLR / (5.0 * config->getNumbPart())) * exp(-pow(config->getMyPi() * pParams->nCutLR / (pParams->alpha * pParams->lBox), 2.0));
 	
+	if (paramArr(minIdx,4) == 1)
+	{
+		cout << "the resulting error is smaller than defined" << endl;
+	}
+	else
+	{
+		cout << "the resulting error is as defined" << endl;
+	}
+
 	cout << "the resulting force error should be: " << sqrt(errRezForce * errRezForce + errRealForce * errRealForce) / fAl << "*F_contact" << endl;
 	cout << "the resulting torque error should be: " << sqrt(errRezTorque * errRezTorque + errRealTorque * errRealTorque) / tAl << "*T_contact" << "\n" << endl;
 }
@@ -421,7 +431,7 @@ void CompDipInteractEwaldR(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* 
 		pWorkVar->intForce.row(idx2) += pBuffer->bufferVec.vec1;
 
 		// calculate pressure tensor for viscosity
-		EvalPressTensLR(pWorkVar, pOutputVar, pBuffer, i);
+		EvalPressTensLRreal(pWorkVar, pOutputVar, &pBuffer->bufferVec.vec1, i);
 	}
 }
 
@@ -430,13 +440,15 @@ void CompDipInteractEwaldR(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* 
 // param[in]: Buffer_S* pBuffer - pointer to Buffer_S object
 // param[in]: Params_S* pParams - pointer to Params_S object
 // return: void
-void CompDipInteractEwaldF(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParams)
+void CompDipInteractEwaldF(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParams, OutputVar_S* pOutputVar)
 {
 	double e, lenSqr, sumC, sumS, preFac;
 	double pc, ps;
 	int nc = pParams->nc;
 
 	Vector3d vc, vs;
+
+	pBuffer->buffer3d.buffer1.setZero(); //set zero before summing up forces
 
 	// loops over upper part of cube
 	for (int nz = 0; nz <= nc; nz++)
@@ -503,8 +515,12 @@ void CompDipInteractEwaldF(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* 
 					pc = vc.x() * vc.y() * vc.z() - vc.x() * vs.y() * vs.z() - vs.x() * vc.y() * vs.z() - vs.x() * vs.y() * vc.z();
 					ps = vs.x() * vc.y() * vc.z() + vc.x() * vs.y() * vc.z() + vc.x() * vc.y() * vs.z() - vs.x() * vs.y() * vs.z();
 					
-					pWorkVar->intForce.row(i) += pParams->cForce * e * (pBuffer->bufferVec.vec1.matrix().dot(pWorkVar->partProp.magMomVec.row(i).matrix())) * (sumC * ps - sumS * pc) * pBuffer->bufferVec.vec1;
+					pBuffer->bufferVec.vec2 = pParams->cForce * e * (pBuffer->bufferVec.vec1.matrix().dot(pWorkVar->partProp.magMomVec.row(i).matrix())) * (sumC * ps - sumS * pc) * pBuffer->bufferVec.vec1;
+					pWorkVar->intForce.row(i) += pBuffer->bufferVec.vec2;
 					pWorkVar->demagFluxDens.row(i) -= pParams->cFluxDens * e * (sumC * pc + sumS * ps) * pBuffer->bufferVec.vec1;
+
+					//sum up forces from reziprocal space for pressure tensor evaluation
+					pBuffer->buffer3d.buffer1.row(i) += pBuffer->bufferVec.vec2;
 				}			
 			}
 		}
@@ -515,6 +531,9 @@ void CompDipInteractEwaldF(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* 
 	{
 		pWorkVar->demagFluxDens.row(i) += pParams->cSelf * pWorkVar->partProp.magMomVec.row(i) - pParams->cSurf * pWorkVar->partProp.magMomSum;
 	}
+
+	//pressure tensor calculation
+	EvalPressTensLRrez(pWorkVar, pOutputVar, &pBuffer->buffer3d.buffer1);
 }
 
 
@@ -721,7 +740,7 @@ void CheckEwaldSum(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParams,
 
 	//Ewald Summation
 	CompDipInteractEwaldR(pWorkVar, pBuffer, pParams, pOutputVar);
-	CompDipInteractEwaldF(pWorkVar, pBuffer, pParams);
+	CompDipInteractEwaldF(pWorkVar, pBuffer, pParams, pOutputVar);
 
 	exactForces = pWorkVar->intForce;
 	exactFields = pWorkVar->demagFluxDens;
@@ -766,10 +785,11 @@ void CheckEwaldSum(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParams,
 // Brief: calculation of repulsive force (Rosensweig) + adding pair interaction force to buffervec2 for pressure tensor calculation
 // param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
 // param[in] : Buffer_S* pBuffer - pointer to buffer_S object
+// param[in] : Array<double,1,3>* pForce - pointer to force vector where all SR contribution are summed
 // param[in]: int idx1, int idx2, particle indizes
 // param[in]: int i, pair indizes
 // return: void
-void CompSterRep(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, int idx1, int idx2, int i)
+void CompSterRep(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Array<double,1,3>* pForce, int idx1, int idx2, int i)
 {
 	double dDelta = 2* (pWorkVar->partProp.rMag(idx1) + config->getEffLenSurfMol());
 	double r = pWorkVar->intLists.intVecsLen(i);
@@ -790,16 +810,17 @@ void CompSterRep(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, int idx1, int idx2, 
 	pWorkVar->intForce.row(idx2) += pBuffer->bufferVec.vec1;
 
 	// add force to buffervec 2 for pressure tensor calculation
-	pBuffer->bufferVec.vec2 += pBuffer->bufferVec.vec1;
+	(*pForce) += pBuffer->bufferVec.vec1;
 }
 
 // Brief: calculation of electrostatic force + adding pair interaction force to buffervec2 for pressure tensor calculation
 // param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
 // param[in] : Buffer_S* pBuffer - pointer to buffer_S object
+// param[in] : Array<double,1,3>* pForce - pointer to force vector where all SR contribution are summed
 // param[in]: int idx1, int idx2, particle indizes
 // param[in]: int i, pair indizes
 // return: void
-void CompElectrostatRep(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, int idx1, int idx2, int i)
+void CompElectrostatRep(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Array<double,1,3>* pForce, int idx1, int idx2, int i)
 {
 	double r = pWorkVar->intLists.intVecsLen(i);
 	
@@ -811,16 +832,17 @@ void CompElectrostatRep(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, int idx1, int
 	pWorkVar->intForce.row(idx2) += pBuffer->bufferVec.vec1;
 
 	// add force to buffervec 2 for pressure tensor calculation
-	pBuffer->bufferVec.vec2 += pBuffer->bufferVec.vec1;
+	(*pForce) += pBuffer->bufferVec.vec1;
 }
 
 // Brief: calculation of attractive van der Waals force + adding pair interaction force to buffervec2 for pressure tensor calculation
 // param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
 // param[in] : Buffer_S* pBuffer - pointer to buffer_S object
+// param[in] : Array<double,1,3>* pForce - pointer to force vector where all SR contribution are summed
 // param[in]: int idx1, int idx2, particle indizes
 // param[in]: int i, pair indizes
 // return: void
-void CompForceVdW(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, int idx1, int idx2, int i)
+void CompForceVdW(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Array<double,1,3>* pForce, int idx1, int idx2, int i)
 {
 	double r = pWorkVar->intLists.intVecsLen(i);
 
@@ -834,5 +856,5 @@ void CompForceVdW(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, int idx1, int idx2,
 	pWorkVar->intForce.row(idx2) += pBuffer->bufferVec.vec1;
 
 	// add force to buffervec 2 for pressure tensor calculation
-	pBuffer->bufferVec.vec2 += pBuffer->bufferVec.vec1;
+	(*pForce) += pBuffer->bufferVec.vec1;
 }

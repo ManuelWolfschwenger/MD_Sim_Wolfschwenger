@@ -53,6 +53,7 @@ Configuration::Configuration() : reader("../configuration.ini") {
 		absTol_ = reader.GetReal("solver_settings", "absTol", -1);
 		deltaTmin_ = reader.GetReal("solver_settings", "deltaTmin", -1);
 		deltaTmax_ = reader.GetReal("solver_settings", "deltaTmax", -1);
+		errTolMinMax_ = reader.GetReal("solver_settings", "errTolMinMax", -1);
 
 		errTolEwald_ = reader.GetReal("long_range_interactions", "errTolEwald", -1);
 		errTolSR_ = reader.GetReal("short_range_interactions", "errTolSR", -1);
@@ -246,6 +247,10 @@ double Configuration::getDeltaTMax() const {
 	return deltaTmax_;
 }
 
+double Configuration::getErrTolMinMax() const {
+	return errTolMinMax_;
+}
+
 // Treatment of long range interactions
 double Configuration::getErrTolEwald() const {
 	return errTolEwald_;
@@ -363,6 +368,7 @@ std::string Configuration::toString() const {
 	ss << "absTol_: " << absTol_ << std::endl;
 	ss << "deltaTmin_: " << deltaTmin_ << std::endl;
 	ss << "deltaTmax_: " << deltaTmax_ << std::endl;
+	ss << "errTolMinMax_: " << errTolMinMax_ << std::endl;
 	ss << "errTolEwald_: " << errTolEwald_ << std::endl;
 	ss << "errTolSR_: " << errTolSR_ << std::endl;
 	ss << "npCoords_: " << npCoords_ << std::endl;

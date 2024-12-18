@@ -53,12 +53,25 @@ double funEffDiameter(double dMag, double r)
 	return 1 - exp(-config->getMyPi() * dMag * dMag * config->getDensSurfMol() / (2 * config->getEffLenSurfMol()) * (dDelta - r * (log(dDelta / (r + 1e-20)) + 1)));  //1e-20 to avoid division by zero
 }
 
-// Brief: normalize vectors and project m onto the plane spanned by B and n / could be probably parallelized
+
+// Brief: normalize vectors and project m onto the plane spanned by B and n 
 // param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
 // return: void
 void VectorProjection(WorkingVar_S* pWorkVar)
 {
 	RowWiseCrossProd(&pWorkVar->coordsRot.Bvec, &pWorkVar->coordsRot.posEa, &pWorkVar->coordsRot.vecNormal);
+	pWorkVar->coordsRot.vecNormal.colwise() /= pWorkVar->coordsRot.vecNormal.rowwise().norm();
+
+	pWorkVar->coordsRot.mProj = pWorkVar->coordsRot.posMm - pWorkVar->coordsRot.vecNormal.colwise()*(pWorkVar->coordsRot.posMm*pWorkVar->coordsRot.vecNormal).rowwise().sum();
+	pWorkVar->coordsRot.posMm = pWorkVar->coordsRot.mProj.colwise() / pWorkVar->coordsRot.mProj.rowwise().norm();
+}
+
+// Brief: normalize vectors and project m onto the plane spanned by B and n 
+// param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
+// return: void
+void VectorProjectionSolver(WorkingVar_S* pWorkVar, ArrayXXd* pPosEa)
+{
+	RowWiseCrossProd(&pWorkVar->coordsRot.Bvec, pPosEa, &pWorkVar->coordsRot.vecNormal);
 	pWorkVar->coordsRot.vecNormal.colwise() /= pWorkVar->coordsRot.vecNormal.rowwise().norm();
 
 	pWorkVar->coordsRot.mProj = pWorkVar->coordsRot.posMm - pWorkVar->coordsRot.vecNormal.colwise()*(pWorkVar->coordsRot.posMm*pWorkVar->coordsRot.vecNormal).rowwise().sum();
@@ -71,7 +84,6 @@ void VectorProjection(WorkingVar_S* pWorkVar)
 // return: void
  ArrayXXd FindLocalMinMax(WorkingVar_S* pWorkVar, int i)
  {
-	double errTol = 1e-23; //error tolerance
 	double x,f,df,Beff;
 
 	vector<double>  minPsi, minEn, maxPsi, maxEn;
@@ -91,7 +103,7 @@ void VectorProjection(WorkingVar_S* pWorkVar)
 			f = 2*config->getAnisEn()*pWorkVar->partProp.volMag(i)*sin(x)*cos(x) +
 					config->getSatMag()*pWorkVar->partProp.volMag(i)*Beff*sin(x - pWorkVar->coordsRot.phiIs(i));
 
-			while (abs(f) > errTol)
+			while (abs(f) > config->getErrTolMinMax())
 			{
 				df = 2*config->getAnisEn()*pWorkVar->partProp.volMag(i)*cos(2*x) +
 					config->getSatMag()*pWorkVar->partProp.volMag(i)*Beff*cos(x - pWorkVar->coordsRot.phiIs(i));
@@ -116,7 +128,7 @@ void VectorProjection(WorkingVar_S* pWorkVar)
 			f = 2*config->getAnisEn()*pWorkVar->partProp.volMag(i)*sin(x)*cos(x) +
 					config->getSatMag()*pWorkVar->partProp.volMag(i)*Beff*sin(x - pWorkVar->coordsRot.phiIs(i));
 
-			while (abs(f) > errTol)
+			while (abs(f) > config->getErrTolMinMax())
 			{
 				df = 2*config->getAnisEn()*pWorkVar->partProp.volMag(i)*cos(2*x) +
 					config->getSatMag()*pWorkVar->partProp.volMag(i)*Beff*cos(x - pWorkVar->coordsRot.phiIs(i));

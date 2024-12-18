@@ -51,7 +51,7 @@ void InitEwaldConst(Params_S* pParams, Buffer_S* pBuffer);
 
 void CompDipInteractEwaldR(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParams, OutputVar_S* pOutputVar);
 
-void CompDipInteractEwaldF(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParams);
+void CompDipInteractEwaldF(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParams, OutputVar_S* pOutputVar);
 
 void EvalSinCos(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParams);
 
@@ -65,10 +65,10 @@ void CheckEwaldSum(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pParams,
 
 /////////////////////// short range interactions//////////////////////////////////////////
 
-void CompSterRep(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, int idx1, int idx2, int i);
+void CompSterRep(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Array<double,1,3>* pForce, int idx1, int idx2, int i);
 
-void CompElectrostatRep(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, int idx1, int idx2, int i);
+void CompElectrostatRep(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Array<double,1,3>* pForce, int idx1, int idx2, int i);
 
-void CompForceVdW(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, int idx1, int idx2, int i);
+void CompForceVdW(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Array<double,1,3>* pForce, int idx1, int idx2, int i);
 
 #endif  /* INTERACTION_H_ */

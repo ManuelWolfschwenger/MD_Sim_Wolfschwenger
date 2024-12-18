@@ -120,7 +120,7 @@ void InitSimulation(void)
 	CompInteractions(pWorkVar, pBuffer, pParams, pOutputVar);
 
 	// put magnetic moments in energy minima, needs interacting field to put mag moments in correct minima
-	InitTwoStateApprox(pWorkVar);
+	InitTwoStateApprox(pWorkVar, pBuffer);
 }
 
 // Brief: This function sets the particle properties like radius, mass, friction coefficients...
@@ -422,18 +422,40 @@ void InitBuffers(Buffer_S* pBuffer)
 	pBuffer->buffer3d.buffer_b.resize(config->getNumbPart(), 3);
 
 	pBuffer->buffer1d.buffer1.resize(config->getNumbPart(), 1);
+	pBuffer->buffer1d.bufferB.resize(config->getNumbPart(), 1);
 }
 
 // Brief: Initializes Two state approximation / puts mag moment in energy mimima
 // param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
 // return: void
-void InitTwoStateApprox(WorkingVar_S* pWorkVar)
+void InitTwoStateApprox(WorkingVar_S* pWorkVar, Buffer_S* pBuffer)
 {
 	ArrayXXd extrema;
 	Array<double,1,3> vecN;
 
-	//direction vector of magnetic flux density
-	pWorkVar->coordsRot.Bvec = pWorkVar->demagFluxDens.colwise()/pWorkVar->demagFluxDens.rowwise().norm();
+	// initial config without external magnetic field
+	pWorkVar->demagFluxDens -= pWorkVar->extFluxDens;
+
+	///////the following code is because of the need to define a direction if mag flux = 0///////
+
+	// compute rowwise norms
+	pBuffer->buffer1d.buffer1 = pWorkVar->demagFluxDens.rowwise().norm();
+
+	//create boolean mask for zero rows
+	pBuffer->buffer3d.buffer1 = (pBuffer->buffer1d.buffer1 == 0).replicate(1,3).cast<double>();
+
+	//avoid division by zero by using a temporary norm vector
+	pBuffer->buffer1d.buffer1 = pBuffer->buffer1d.buffer1 + pBuffer->buffer3d.buffer1.col(0);
+
+	// normalize the non zero rows
+	pWorkVar->coordsRot.Bvec = pWorkVar->demagFluxDens.colwise() / pBuffer->buffer1d.buffer1;
+
+	// replace the zero rows with (0,0,1)
+	pBuffer->buffer3d.buffer2.setZero();
+	pBuffer->buffer3d.buffer2.col(2).setOnes();
+	pWorkVar->coordsRot.Bvec = pWorkVar->coordsRot.Bvec*(1 - pBuffer->buffer3d.buffer1) + pBuffer->buffer3d.buffer1*pBuffer->buffer3d.buffer2;
+
+	//////////now the direction is spezified in all cases ////////
 
 	//normalize vectors and project m onto the plane spanned by B and n
 	VectorProjection(pWorkVar);
@@ -518,17 +540,17 @@ void RunSimulation(void)
 		EvalSinCos(pWorkVar, pBuffer, pParams);
 		CompInteractions(pWorkVar, pBuffer, pParams, pOutputVar);
 
-		// check if ewald summation works correct
+		// check if ewald summation works correct / make sure thermal forces and short range forces are not added
 		//CheckEwaldSum(pWorkVar, pBuffer, pParams, pOutputVar);
 		
+		//two state approximation
+		TwoStateApprox(pWorkVar, pBuffer, deltaT);
+
 		// numerical integration routine for rotational movement
   		IntegrationRot(pWorkVar, pIntCoeff, pBuffer, pParams, &deltaT, &deltaTused); 
 
 		//numerical integration for translational movement
 		IntegrationTrans(pWorkVar, pBuffer, deltaTused, pParams);
-
-		//two state approximation
-		TwoStateApprox(pWorkVar, deltaT);
 
 		// Apply periodic boundary conditions
 		ApplyBoundaryCondArr(&pWorkVar->coordsTrans.pos, &pBuffer->buffer3d, pParams);
@@ -542,7 +564,8 @@ void RunSimulation(void)
 			cout << "actual timestep: " << deltaT << "s" << endl;
 			cout << "actual time: " << tInt << "s" << endl;
 			cout << "simulation progress: " << countCoords / config->getNPCoords() * 100.0 << "%" << endl;
-			cout << "simulation will end in about " << (config->getTEnd() - tInt) * (runTime / tInt) / 3600.0 << "h" << endl;
+			cout << "simulation will end in about " << (config->getTEnd() - tInt) * (runTime / tInt) / 3600.0 << "h or " << (config->getTEnd() - tInt) * (runTime / tInt) / 60 << "min" << endl;
+
 
 			countCoords++;
 
@@ -552,9 +575,10 @@ void RunSimulation(void)
 			//enable translational output
 			pParams->transOutput = true;
 		}
-
-		EvalTransCoeffs(pWorkVar, pBuffer, pOutputVar, pParams);
 	
+		//pressure tensor evaluation
+		EvalTransCoeffs(pWorkVar, pBuffer, pOutputVar, pParams);
+
 		// magnetization vector
 		pOutputVar->t.push_back(tInt);
 		pOutputVar->nz.push_back(pWorkVar->coordsRot.posEa.col(2).abs().mean());
@@ -677,7 +701,7 @@ void CompInteractions(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pPara
 
 	//Ewald summation, fourier and real space contributions
 	CompDipInteractEwaldR(pWorkVar, pBuffer, pParams, pOutputVar);
-	CompDipInteractEwaldF(pWorkVar, pBuffer, pParams);
+	CompDipInteractEwaldF(pWorkVar, pBuffer, pParams, pOutputVar);
 
 	// loop for short range interactions
 	int idx1, idx2;
@@ -695,22 +719,22 @@ void CompInteractions(WorkingVar_S* pWorkVar, Buffer_S* pBuffer, Params_S* pPara
 				pBuffer->bufferVec.vec2.setZero();
 
 				//steric repulsion
-				CompSterRep(pWorkVar, pBuffer, idx1, idx2, i);
+				CompSterRep(pWorkVar, pBuffer, &pBuffer->bufferVec.vec2, idx1, idx2, i);
 
 				// electrostatic repulsion
-				CompElectrostatRep(pWorkVar, pBuffer, idx1, idx2, i);
+				CompElectrostatRep(pWorkVar, pBuffer, &pBuffer->bufferVec.vec2, idx1, idx2, i);
 
 				// vdw forces
-				CompForceVdW(pWorkVar, pBuffer, idx1, idx2, i);
+				CompForceVdW(pWorkVar, pBuffer, &pBuffer->bufferVec.vec2, idx1, idx2, i);
 
 				// compute pressure tensor components for short range interactions
-				EvalPressTensSR(pWorkVar, pOutputVar, pBuffer, i);
+				EvalPressTensSR(pWorkVar, pOutputVar, &pBuffer->bufferVec.vec2, i);
 			}
 		}
 	}
 	
 	//add thermal fluctations to force array
-	pWorkVar->intForce += pWorkVar->thermForce; 
+	pWorkVar->intForce += pWorkVar->thermForce;
 
 	//add external flux dens to interacting field
 	pWorkVar->demagFluxDens += pWorkVar->extFluxDens;
@@ -738,15 +762,33 @@ void CompDemagField(WorkingVar_S * pWorkVar, Buffer_S * pBuffer, Params_S * pPar
 // param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
 // param[in]: double deltaT - current integration timestep
 // return: void
-void TwoStateApprox(WorkingVar_S* pWorkVar, double deltaT)
+void TwoStateApprox(WorkingVar_S* pWorkVar, Buffer_S * pBuffer, double deltaT)
 {
 	ArrayXXd extrema;
 	Array<double,1,3> vecN;
 	double dE1, dE2, r1, r2, numb, p;
 	bool jump;
 
-	//direction vector of magnetic flux density
-	pWorkVar->coordsRot.Bvec = pWorkVar->demagFluxDens.colwise()/pWorkVar->demagFluxDens.rowwise().norm();	
+	///////the following code is because of the need to define a direction if mag flux = 0///////
+
+	// compute rowwise norms
+	pBuffer->buffer1d.buffer1 = pWorkVar->demagFluxDens.rowwise().norm();
+
+	//create boolean mask for zero rows
+	pBuffer->buffer3d.buffer1 = (pBuffer->buffer1d.buffer1 == 0).replicate(1,3).cast<double>();
+
+	//avoid division by zero by using a temporary norm vector
+	pBuffer->buffer1d.buffer1 = pBuffer->buffer1d.buffer1 + pBuffer->buffer3d.buffer1.col(0);
+
+	// normalize the non zero rows
+	pWorkVar->coordsRot.Bvec = pWorkVar->demagFluxDens.colwise() / pBuffer->buffer1d.buffer1;
+
+	// replace the zero rows with (0,0,1)
+	pBuffer->buffer3d.buffer2.setZero();
+	pBuffer->buffer3d.buffer2.col(2).setOnes();
+	pWorkVar->coordsRot.Bvec = pWorkVar->coordsRot.Bvec*(1 - pBuffer->buffer3d.buffer1) + pBuffer->buffer3d.buffer1*pBuffer->buffer3d.buffer2;
+
+	//////////now the direction is spezified in all cases ////////
 
 	//normalize vectors and project m onto the plane spanned by B and n
 	VectorProjection(pWorkVar);
@@ -838,10 +880,90 @@ void TwoStateApprox(WorkingVar_S* pWorkVar, double deltaT)
 	}	
 }
 
+// Brief: Two state approximation for readjustment of magnetic moment positions in partial solver steps
+// param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
+// param[in]	: Buffer_S* pBuffer - pointer to Buffer_S object
+// param[in]: double deltaT - current integration timestep
+// return: void
+void TwoStateApproxSolver(WorkingVar_S* pWorkVar, Buffer_S * pBuffer, ArrayXXd* pPosEa)
+{
+	ArrayXXd extrema;
+	Array<double,1,3> vecN;
+	double dE1, dE2, r1, r2, numb, p;
+
+	///////the following code is because of the need to define a direction if mag flux = 0///////
+	// compute rowwise norms
+	pBuffer->buffer1d.buffer1 = pWorkVar->demagFluxDens.rowwise().norm();
+
+	//create boolean mask for zero rows
+	pBuffer->buffer3d.buffer1 = (pBuffer->buffer1d.buffer1 == 0).replicate(1,3).cast<double>();
+
+	//avoid division by zero by using a temporary norm vector
+	pBuffer->buffer1d.buffer1 = pBuffer->buffer1d.buffer1 + pBuffer->buffer3d.buffer1.col(0);
+
+	// normalize the non zero rows
+	pWorkVar->coordsRot.Bvec = pWorkVar->demagFluxDens.colwise() / pBuffer->buffer1d.buffer1;
+
+	// replace the zero rows with (0,0,1)
+	pBuffer->buffer3d.buffer2.setZero();
+	pBuffer->buffer3d.buffer2.col(2).setOnes();
+	pWorkVar->coordsRot.Bvec = pWorkVar->coordsRot.Bvec*(1 - pBuffer->buffer3d.buffer1) + pBuffer->buffer3d.buffer1*pBuffer->buffer3d.buffer2;
+
+	//////////now the direction is spezified in all cases ////////
+
+	//normalize vectors and project m onto the plane spanned by B and n
+	VectorProjectionSolver(pWorkVar, pPosEa);
+
+	pWorkVar->coordsRot.phiIs = (((*pPosEa)*pWorkVar->coordsRot.Bvec).rowwise().sum()).acos();  //angle between posEa and magnetic field
+
+	for (int i = 0; i < config->getNumbPart(); i++)
+	{
+		extrema = FindLocalMinMax(pWorkVar,i);
+		//cout << extrema << endl;
+
+		////////////////// put mag moments back in minima after easy axis movement //////////////////////////////
+		if (extrema.cols() == 2) //check if there are two minima
+		{
+			if (pWorkVar->coordsRot.state(i) == 1)
+			{
+				pWorkVar->coordsRot.psiIs(i) = extrema(0,0);
+			}
+			else if (pWorkVar->coordsRot.state(i) == 2)
+			{
+				pWorkVar->coordsRot.psiIs(i) = extrema(0,1);
+			}
+			else if (pWorkVar->coordsRot.state(i) == 0)
+			{
+				if (pWorkVar->coordsRot.psiIs(i) > extrema(2,0) && pWorkVar->coordsRot.psiIs(i) < extrema(2,1))
+				{
+					pWorkVar->coordsRot.psiIs(i) = extrema(0,1);
+					pWorkVar->coordsRot.state(i) = 2;
+				}
+				else
+				{
+					pWorkVar->coordsRot.psiIs(i) = extrema(0,0);
+					pWorkVar->coordsRot.state(i) = 1;
+				}
+			}
+		}
+		else
+		{
+			pWorkVar->coordsRot.psiIs(i) = extrema(0); //if there is only one minimum
+			pWorkVar->coordsRot.state(i) = 0;
+		} 	
+		
+		vecN = pWorkVar->coordsRot.Bvec.row(i) - (pWorkVar->coordsRot.Bvec.row(i)*(*pPosEa).row(i)).sum()*(*pPosEa).row(i);
+		vecN.colwise() /=vecN.rowwise().norm();
+		pWorkVar->coordsRot.posMm.row(i) = cos(pWorkVar->coordsRot.psiIs(i))*(*pPosEa).row(i) + sin(pWorkVar->coordsRot.psiIs(i))*vecN;
+	}
+}
+
+
 // Brief: This function performs the numerical integration of the rotational equations of motion with the selected integration method
 // param[in/out]: WorkingVar_S* pWorkVar - pointer to a WorkingVar_S object
 // param[in/out]: IntCoefficient_S* pIntCoeff - pointer to a IntCoefficient_S object
 // param[in]    : Buffer_S* pBuffer - pointer to Buffer_S* object 
+// param[in]    : Params_S* pParams - pointer to params_S object
 // param[in]	: double* pDeltaT - timestep for integration (adjusted by "AdjustTimestep")
 // param[out]	: double* pDeltaTused - pointer to the actual used timestep by the integration routine
 // return: void
@@ -849,7 +971,7 @@ void IntegrationRot(WorkingVar_S* pWorkVar, IntCoefficient_S* pIntCoeff, Buffer_
 {
 	bool    cond;       // condition for while loop, set by AdjustTimestep
 	bool    noFailed;   // condition for while loop, set by AdjustTimestep
-	double  errorMm;    // error for magnetic moment
+	double  errorEa;    // error for magnetic moment
 	double 	deltaT;		
 	double  power;      // error convergence
 
@@ -870,15 +992,17 @@ void IntegrationRot(WorkingVar_S* pWorkVar, IntCoefficient_S* pIntCoeff, Buffer_
 			RKCoeffs(pWorkVar, &pWorkVar->coordsRot, &pIntCoeff->k1, pBuffer);
 
 			pIntCoeff->coords2.posEa = pWorkVar->coordsRot.posEa + deltaT * pIntCoeff->k1.knEa;
+			pIntCoeff->coords2.posEa.rowwise().normalize();
+			TwoStateApproxSolver(pWorkVar, pBuffer, &pIntCoeff->coords2.posEa);
 			RKCoeffs(pWorkVar, &pIntCoeff->coords2, &pIntCoeff->k2, pBuffer);
 
 			// error calculation
 			pBuffer->buffer3d.buffer1 = 0.5 * pIntCoeff->k1.knEa - 0.5 * pIntCoeff->k2.knEa; //error of solver
-			errorMm = deltaT * (pBuffer->buffer3d.buffer1.rowwise().norm()).maxCoeff(); //same as normcontrol in matlab
+			errorEa = deltaT * (pBuffer->buffer3d.buffer1.rowwise().norm()).maxCoeff(); //same as normcontrol in matlab
 
 			// save old deltaT and adjust timestep
 			*pDeltaTused = deltaT;		
-			AdjustTimeStep(pWorkVar, errorMm, power, pDeltaT, &cond, &noFailed);			
+			AdjustTimeStep(pWorkVar, errorEa, power, pDeltaT, &cond, &noFailed);			
 		}
 
 		pWorkVar->coordsRot.posEa += *pDeltaTused * (0.5 * pIntCoeff->k1.knEa + 0.5 * pIntCoeff->k2.knEa); //2.order solution
@@ -887,7 +1011,7 @@ void IntegrationRot(WorkingVar_S* pWorkVar, IntCoefficient_S* pIntCoeff, Buffer_
 	case BOGACKI_SHAMPINE:
 	{
 		power = 1.0 / 3.0;
-
+		
 		while (cond)
 		{
 			// pre load deltaT for faster execution
@@ -896,20 +1020,26 @@ void IntegrationRot(WorkingVar_S* pWorkVar, IntCoefficient_S* pIntCoeff, Buffer_
 			RKCoeffs(pWorkVar, &pWorkVar->coordsRot, &pIntCoeff->k1, pBuffer);
 
 			pIntCoeff->coords2.posEa = pWorkVar->coordsRot.posEa + deltaT * 1.0 / 2.0 * pIntCoeff->k1.knEa;
+			pIntCoeff->coords2.posEa.rowwise().normalize();
+			TwoStateApproxSolver(pWorkVar, pBuffer, &pIntCoeff->coords2.posEa);
 			RKCoeffs(pWorkVar, &pIntCoeff->coords2, &pIntCoeff->k2, pBuffer);
 
 			pIntCoeff->coords3.posEa = pWorkVar->coordsRot.posEa + deltaT *  3.0 / 4.0 * pIntCoeff->k2.knEa;
+			pIntCoeff->coords3.posEa.rowwise().normalize();
+			TwoStateApproxSolver(pWorkVar, pBuffer, &pIntCoeff->coords3.posEa);
 			RKCoeffs(pWorkVar, &pIntCoeff->coords3, &pIntCoeff->k3, pBuffer);
 
 			pIntCoeff->coords4.posEa = pWorkVar->coordsRot.posEa + deltaT * (2.0 / 9.0 * pIntCoeff->k1.knEa + 1.0 / 3.0 * pIntCoeff->k2.knEa + 4.0 / 9.0 * pIntCoeff->k3.knEa);
+			pIntCoeff->coords4.posEa.rowwise().normalize();
+			TwoStateApproxSolver(pWorkVar, pBuffer, &pIntCoeff->coords4.posEa);
 			RKCoeffs(pWorkVar, &pIntCoeff->coords4, &pIntCoeff->k4, pBuffer);
 
 			pBuffer->buffer3d.buffer1 = -5.0 / 72.0 * pIntCoeff->k1.knEa + 1.0 / 12.0 * pIntCoeff->k2.knEa + 1.0 / 9.0 * pIntCoeff->k3.knEa - 1.0 / 8.0 * pIntCoeff->k4.knEa;
-			errorMm = deltaT * (pBuffer->buffer3d.buffer1.rowwise().norm()).maxCoeff();
+			errorEa = deltaT * (pBuffer->buffer3d.buffer1.rowwise().norm()).maxCoeff();
 
 			// save old deltaT and adjust timestep
 			*pDeltaTused = deltaT;
-			AdjustTimeStep(pWorkVar, errorMm, power, pDeltaT, &cond, &noFailed);
+			AdjustTimeStep(pWorkVar, errorEa, power, pDeltaT, &cond, &noFailed);
 		}
 
 		pWorkVar->coordsRot.posEa = pIntCoeff->coords4.posEa;
@@ -927,33 +1057,46 @@ void IntegrationRot(WorkingVar_S* pWorkVar, IntCoefficient_S* pIntCoeff, Buffer_
 			RKCoeffs(pWorkVar, &pWorkVar->coordsRot, &pIntCoeff->k1, pBuffer);
 
 			pIntCoeff->coords2.posEa = pWorkVar->coordsRot.posEa + deltaT * 1.0 / 5.0 * pIntCoeff->k1.knEa;
+			pIntCoeff->coords2.posEa.rowwise().normalize();
+			TwoStateApproxSolver(pWorkVar, pBuffer, &pIntCoeff->coords2.posEa);
 			RKCoeffs(pWorkVar, &pIntCoeff->coords2, &pIntCoeff->k2, pBuffer);
 
 			pIntCoeff->coords3.posEa = pWorkVar->coordsRot.posEa + deltaT * (3.0 / 40.0 * pIntCoeff->k1.knEa + 9.0 / 40.0 * pIntCoeff->k2.knEa);
+			pIntCoeff->coords3.posEa.rowwise().normalize();
+			TwoStateApproxSolver(pWorkVar, pBuffer, &pIntCoeff->coords3.posEa);
 			RKCoeffs(pWorkVar, &pIntCoeff->coords3, &pIntCoeff->k3, pBuffer);
 
 			pIntCoeff->coords4.posEa = pWorkVar->coordsRot.posEa + deltaT * (44.0 / 45.0 * pIntCoeff->k1.knEa - 56.0 / 15.0 * pIntCoeff->k2.knEa + 32.0 / 9.0 * pIntCoeff->k3.knEa);
+			pIntCoeff->coords4.posEa.rowwise().normalize();
+			TwoStateApproxSolver(pWorkVar, pBuffer, &pIntCoeff->coords4.posEa);
 			RKCoeffs(pWorkVar, &pIntCoeff->coords4, &pIntCoeff->k4, pBuffer);
 
 			pIntCoeff->coords5.posEa = pWorkVar->coordsRot.posEa + deltaT * (19372.0 / 6561.0 * pIntCoeff->k1.knEa - 25360.0 / 2187.0 * pIntCoeff->k2.knEa + 64448.0 / 6561.0 * pIntCoeff->k3.knEa - 212.0 / 729.0 * pIntCoeff->k4.knEa);
+			pIntCoeff->coords5.posEa.rowwise().normalize();
+			TwoStateApproxSolver(pWorkVar, pBuffer, &pIntCoeff->coords5.posEa);
 			RKCoeffs(pWorkVar, &pIntCoeff->coords5, &pIntCoeff->k5, pBuffer);
 
 			pIntCoeff->coords6.posEa = pWorkVar->coordsRot.posEa + deltaT * (9017.0 / 3168.0 * pIntCoeff->k1.knEa - 355.0 / 33.0 * pIntCoeff->k2.knEa + 46732.0 / 5247.0 * pIntCoeff->k3.knEa + 49.0 / 176.0 * pIntCoeff->k4.knEa - 5103.0 / 18656.0 * pIntCoeff->k5.knEa);
+			pIntCoeff->coords6.posEa.rowwise().normalize();
+			TwoStateApproxSolver(pWorkVar, pBuffer, &pIntCoeff->coords6.posEa);
 			RKCoeffs(pWorkVar, &pIntCoeff->coords6, &pIntCoeff->k6, pBuffer);
 
 			pIntCoeff->coords7.posEa = pWorkVar->coordsRot.posEa + deltaT * (35.0 / 384.0 * pIntCoeff->k1.knEa + 500.0 / 1113.0 * pIntCoeff->k3.knEa + 125.0 / 192.0 * pIntCoeff->k4.knEa - 2187.0 / 6784.0 * pIntCoeff->k5.knEa + 11.0 / 84.0 * pIntCoeff->k6.knEa);
+			pIntCoeff->coords7.posEa.rowwise().normalize();
+			TwoStateApproxSolver(pWorkVar, pBuffer, &pIntCoeff->coords7.posEa);
 			RKCoeffs(pWorkVar, &pIntCoeff->coords7, &pIntCoeff->k7, pBuffer);
 
 			// error calculation
 			pBuffer->buffer3d.buffer1 = 71.0 / 57600.0 * pIntCoeff->k1.knEa - 71.0 / 16695.0 * pIntCoeff->k3.knEa + 71.0 / 1920.0 * pIntCoeff->k4.knEa - 17253.0 / 339200.0 * pIntCoeff->k5.knEa + 22.0 / 525.0 * pIntCoeff->k6.knEa - 1.0 / 40.0 * pIntCoeff->k7.knEa;
-			errorMm = deltaT * (pBuffer->buffer3d.buffer1.rowwise().norm()).maxCoeff();
+			errorEa = deltaT * (pBuffer->buffer3d.buffer1.rowwise().norm()).maxCoeff();
 			
 			// save old deltaT and adjust timestep
 			*pDeltaTused = deltaT;
-			AdjustTimeStep(pWorkVar, errorMm, power, pDeltaT, &cond, &noFailed);
+			AdjustTimeStep(pWorkVar, errorEa, power, pDeltaT, &cond, &noFailed);
 		}
 
 		pWorkVar->coordsRot.posEa += *pDeltaTused * (35.0 / 384.0 * pIntCoeff->k1.knEa + 500.0 / 1113.0 * pIntCoeff->k3.knEa + 125.0 / 192.0 * pIntCoeff->k4.knEa - 2187.0 / 6784 * pIntCoeff->k5.knEa + 11.0 / 84.0 * pIntCoeff->k6.knEa); //5.order solution
+
 		break;
 	}
 	}

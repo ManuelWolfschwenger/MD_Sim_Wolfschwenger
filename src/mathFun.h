@@ -24,6 +24,8 @@ double funEffDiameter(double dMag, double r);
 
 void VectorProjection(WorkingVar_S* pWorkVar);
 
+void VectorProjectionSolver(WorkingVar_S* pWorkVar, ArrayXXd* pPosEa);
+
 ArrayXXd FindLocalMinMax(WorkingVar_S* pWorkVar, int i);
 
 #endif  /* MATHFUN_H_ */
